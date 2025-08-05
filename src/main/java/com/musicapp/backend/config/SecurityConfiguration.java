@@ -24,8 +24,22 @@ public class SecurityConfiguration {
 
     private static final String[] WHITE_LIST_URL = {
             "/api/v1/auth/**",
-            "/v3/api-docs/**", // Swagger
-            "/swagger-ui/**"   // Swagger
+            "/api/v1/songs",          // Public song listing
+            "/api/v1/songs/{id}",     // Public song details  
+            "/api/v1/songs/top",      // Public top songs
+            "/api/v1/songs/recent",   // Public recent songs
+            "/api/v1/songs/most-liked", // Public most liked songs
+            "/api/v1/songs/singer/**", // Public songs by singer
+            "/api/v1/songs/{id}/listen", // Public listen count increment
+            "/api/v1/singers",        // Public singer listing
+            "/api/v1/singers/{id}",   // Public singer details
+            "/api/v1/singers/list",   // Public singer list
+            "/api/v1/tags",           // Public tag listing
+            "/api/v1/tags/{id}",      // Public tag details
+            "/api/v1/likes/songs/{id}/count",     // Public like counts
+            "/api/v1/likes/playlists/{id}/count", // Public like counts
+            "/v3/api-docs/**",        // Swagger
+            "/swagger-ui/**"          // Swagger
     };
 
     @Bean

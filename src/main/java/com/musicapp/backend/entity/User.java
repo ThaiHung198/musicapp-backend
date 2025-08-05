@@ -9,7 +9,8 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import java.sql.Date;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -35,7 +36,27 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private String password;
 
-    // ... Thêm các trường khác như phone_number, avatar_path...
+    @Column(name = "phone_number")
+    private String phoneNumber;
+    
+    @Column(name = "avatar_path")
+    private String avatarPath;
+    
+    @Column(name = "date_of_birth")
+    private LocalDate dateOfBirth;
+    
+    private String gender;
+    
+    @Builder.Default
+    private String provider = "local"; // 'local' or 'google'
+    
+    @Column(name = "created_at")
+    @Builder.Default
+    private LocalDateTime createdAt = LocalDateTime.now();
+    
+    @Column(name = "updated_at")
+    @Builder.Default
+    private LocalDateTime updatedAt = LocalDateTime.now();
 
     @ManyToMany(fetch = FetchType.EAGER) // EAGER để lấy roles ngay khi load user
     @JoinTable(
@@ -44,6 +65,19 @@ public class User implements UserDetails {
             inverseJoinColumns = @JoinColumn(name = "role_id")
     )
     private Set<Role> roles;
+    
+    // Relationships
+    @OneToMany(mappedBy = "creator", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private Set<Song> createdSongs;
+    
+    @OneToMany(mappedBy = "creator", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private Set<Playlist> createdPlaylists;
+    
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<Like> likes;
+    
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<Comment> comments;
 
     // --- Các phương thức của UserDetails ---
     @Override
