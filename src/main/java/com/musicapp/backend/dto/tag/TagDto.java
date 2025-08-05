@@ -1,4 +1,4 @@
-package com.musicapp.backend.dto;
+package com.musicapp.backend.dto.tag;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class AuthenticationRequest {
-    private String email;
-    private String password;
+public class TagDto {
+    private Long id;
+    private String name;
 }
