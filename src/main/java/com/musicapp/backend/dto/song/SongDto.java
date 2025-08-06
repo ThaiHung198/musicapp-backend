@@ -7,7 +7,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -24,21 +23,19 @@ public class SongDto {
     private Long listenCount;
     private String status;
     private LocalDateTime createdAt;
-    
+
     // Premium features
     private Boolean isPremium;
-    private BigDecimal premiumPrice;
     private Boolean canAccess; // Can current user access this song
-    private Boolean isPurchased; // Has current user purchased this premium song
-    
+
     // Creator info
     private Long creatorId;
     private String creatorName;
-    
+
     // Related entities
     private List<SingerDto> singers;
     private List<TagDto> tags;
-    
+
     // Interaction counts
     private Long likeCount;
     private Long commentCount;

@@ -1,6 +1,6 @@
 package com.musicapp.backend.dto.subscription;
 
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -11,13 +11,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CreateSubscriptionRequest {
-    
-    @NotNull(message = "Subscription type is required")
-    private String subscriptionType; // BASIC, PREMIUM, VIP
-    
-    @Builder.Default
-    private Boolean autoRenewal = false;
-    
-    @Builder.Default
-    private Integer durationMonths = 1; // Default 1 month
+
+    @NotBlank(message = "Package identifier is required")
+    private String packageId; // Ví dụ: "monthly_premium", "yearly_premium"
 }

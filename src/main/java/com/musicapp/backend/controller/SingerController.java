@@ -4,6 +4,7 @@ import com.musicapp.backend.dto.BaseResponse;
 import com.musicapp.backend.dto.PagedResponse;
 import com.musicapp.backend.dto.singer.CreateSingerRequest;
 import com.musicapp.backend.dto.singer.SingerDto;
+import com.musicapp.backend.entity.User;
 import com.musicapp.backend.service.SingerService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +14,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -23,6 +25,15 @@ import java.util.List;
 public class SingerController {
 
     private final SingerService singerService;
+
+    @GetMapping("/selectable")
+    @PreAuthorize("hasRole('CREATOR')")
+    public ResponseEntity<BaseResponse<List<SingerDto>>> getSelectableSingers(
+            @AuthenticationPrincipal User creator
+    ) {
+        List<SingerDto> singers = singerService.getSelectableSingersForCreator(creator);
+        return ResponseEntity.ok(BaseResponse.success(singers));
+    }
 
     @GetMapping
     public ResponseEntity<BaseResponse<PagedResponse<SingerDto>>> getAllSingers(

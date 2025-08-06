@@ -1,11 +1,9 @@
 package com.musicapp.backend.controller;
 
-import com.musicapp.backend.dto.transaction.CreateTransactionRequest;
 import com.musicapp.backend.dto.transaction.TransactionDto;
 import com.musicapp.backend.dto.BaseResponse;
 import com.musicapp.backend.dto.PagedResponse;
 import com.musicapp.backend.service.TransactionService;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -15,22 +13,15 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/transactions")
+@RequestMapping("/api/v1/transactions") // Đổi đường dẫn API cho nhất quán
 @RequiredArgsConstructor
 public class TransactionController {
 
     private final TransactionService transactionService;
 
-    @PostMapping
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<BaseResponse<TransactionDto>> createTransaction(
-            @Valid @RequestBody CreateTransactionRequest request,
-            Authentication authentication) {
-        String username = authentication.getName();
-        TransactionDto transaction = transactionService.createTransaction(username, request);
-        return ResponseEntity.ok(BaseResponse.success("Transaction created successfully", transaction));
-    }
-
+    /**
+     * Lấy lịch sử giao dịch của người dùng đang đăng nhập.
+     */
     @GetMapping("/my")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<PagedResponse<TransactionDto>> getMyTransactions(
@@ -43,6 +34,9 @@ public class TransactionController {
         return ResponseEntity.ok(transactions);
     }
 
+    /**
+     * Lấy chi tiết một giao dịch theo ID.
+     */
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse<TransactionDto>> getTransaction(

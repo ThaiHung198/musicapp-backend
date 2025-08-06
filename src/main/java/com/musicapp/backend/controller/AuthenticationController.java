@@ -3,6 +3,7 @@ package com.musicapp.backend.controller;
 
 import com.musicapp.backend.dto.AuthenticationRequest;
 import com.musicapp.backend.dto.AuthenticationResponse;
+import com.musicapp.backend.dto.BaseResponse;
 import com.musicapp.backend.dto.RegisterRequest;
 import com.musicapp.backend.service.AuthenticationService;
 import jakarta.validation.Valid;
@@ -18,19 +19,28 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class AuthenticationController {
 
-    private final AuthenticationService service;
+    private final AuthenticationService authenticationService;
 
     @PostMapping("/register")
-    public ResponseEntity<AuthenticationResponse> register(
+    public ResponseEntity<BaseResponse<Void>> register(
             @Valid @RequestBody RegisterRequest request
     ) {
-        return ResponseEntity.ok(service.register(request));
+        // Gọi service để thực hiện hành động
+        authenticationService.register(request);
+
+        // Controller tự xây dựng response thành công
+        return ResponseEntity.ok(
+                BaseResponse.success("Đăng ký tài khoản thành công!", null)
+        );
     }
 
     @PostMapping("/authenticate")
-    public ResponseEntity<AuthenticationResponse> authenticate(
-            @RequestBody AuthenticationRequest request
+    public ResponseEntity<BaseResponse<AuthenticationResponse>> authenticate(
+            @Valid @RequestBody AuthenticationRequest request
     ) {
-        return ResponseEntity.ok(service.authenticate(request));
+        AuthenticationResponse responseData = authenticationService.authenticate(request);
+        return ResponseEntity.ok(
+                BaseResponse.success("Đăng nhập thành công!", responseData)
+        );
     }
 }

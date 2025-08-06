@@ -24,7 +24,7 @@ public class SubmissionController {
     private SubmissionService submissionService;
 
     @PostMapping
-    @PreAuthorize("hasRole('CREATOR') or hasRole('ADMIN')")
+    @PreAuthorize("hasRole('CREATOR')")
     public ResponseEntity<BaseResponse<SubmissionDto>> createSubmission(
             @Valid @RequestBody CreateSubmissionRequest request,
             Authentication authentication) {
@@ -51,6 +51,7 @@ public class SubmissionController {
     public ResponseEntity<BaseResponse<SubmissionDto>> getSubmission(
             @PathVariable Long id,
             Authentication authentication) {
+
         String username = authentication.getName();
         SubmissionDto submission = submissionService.getSubmissionById(id, username);
         return ResponseEntity.ok(BaseResponse.success("Submission retrieved successfully", submission));

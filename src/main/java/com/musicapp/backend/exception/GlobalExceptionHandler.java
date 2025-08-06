@@ -1,83 +1,55 @@
+// src/main/java/com/musicapp/backend/exception/GlobalExceptionHandler.java
 package com.musicapp.backend.exception;
 
 import com.musicapp.backend.dto.BaseResponse;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.validation.FieldError;
-import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.util.HashMap;
-import java.util.Map;
+// ... các import khác nếu có ...
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-    
+
+    // <<< THÊM PHƯƠNG THỨC MỚI NÀY VÀO >>>
+    /**
+     * Xử lý các lỗi liên quan đến thông tin đăng nhập không hợp lệ (sai email/mật khẩu).
+     * Trả về status 401 Unauthorized.
+     */
+    @ExceptionHandler(BadCredentialsException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED) // Status 401
+    public BaseResponse<Void> handleBadCredentialsException(BadCredentialsException ex) {
+        // Trả về một thông báo lỗi chung chung, thân thiện và an toàn
+        return BaseResponse.error("Tài khoản hoặc mật khẩu không chính xác.");
+    }
+
+    // --- CÁC TRÌNH XỬ LÝ EXCEPTION KHÁC CỦA BẠN (GIỮ NGUYÊN) ---
+
     @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<BaseResponse<?>> handleResourceNotFoundException(ResourceNotFoundException e) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(BaseResponse.error(e.getMessage()));
+    @ResponseStatus(HttpStatus.NOT_FOUND) // Status 404
+    public BaseResponse<Void> handleResourceNotFoundException(ResourceNotFoundException ex) {
+        return BaseResponse.error(ex.getMessage());
     }
-    
+
     @ExceptionHandler(ResourceAlreadyExistsException.class)
-    public ResponseEntity<BaseResponse<?>> handleResourceAlreadyExistsException(ResourceAlreadyExistsException e) {
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(BaseResponse.error(e.getMessage()));
+    @ResponseStatus(HttpStatus.CONFLICT) // Status 409
+    public BaseResponse<Void> handleResourceAlreadyExistsException(ResourceAlreadyExistsException ex) {
+        return BaseResponse.error(ex.getMessage());
     }
-    
-    @ExceptionHandler(UnauthorizedException.class)
-    public ResponseEntity<BaseResponse<?>> handleUnauthorizedException(UnauthorizedException e) {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(BaseResponse.error(e.getMessage()));
-    }
-    
-    @ExceptionHandler(BadRequestException.class)
-    public ResponseEntity<BaseResponse<?>> handleBadRequestException(BadRequestException e) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(BaseResponse.error(e.getMessage()));
-    }
-    
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<BaseResponse<?>> handleValidationExceptions(MethodArgumentNotValidException e) {
-        Map<String, String> errors = new HashMap<>();
-        e.getBindingResult().getAllErrors().forEach((error) -> {
-            String fieldName = ((FieldError) error).getField();
-            String errorMessage = error.getDefaultMessage();
-            errors.put(fieldName, errorMessage);
-        });
-        
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(BaseResponse.error("Validation failed: " + errors.toString()));
-    }
-    
+
+    // ... các handler khác ...
+
+    /**
+     * Trình xử lý lỗi chung cho các exception không được xử lý cụ thể.
+     * Trả về status 500 Internal Server Error.
+     */
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<BaseResponse<?>> handleGenericException(Exception e) {
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(BaseResponse.error("An unexpected error occurred: " + e.getMessage()));
-    }
-    
-    @ExceptionHandler(InsufficientFundsException.class)
-    public ResponseEntity<BaseResponse<?>> handleInsufficientFundsException(InsufficientFundsException e) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(BaseResponse.error(e.getMessage()));
-    }
-    
-    @ExceptionHandler(SubmissionNotFoundException.class)
-    public ResponseEntity<BaseResponse<?>> handleSubmissionNotFoundException(SubmissionNotFoundException e) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(BaseResponse.error(e.getMessage()));
-    }
-    
-    @ExceptionHandler(SubscriptionNotFoundException.class)
-    public ResponseEntity<BaseResponse<?>> handleSubscriptionNotFoundException(SubscriptionNotFoundException e) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(BaseResponse.error(e.getMessage()));
-    }
-    
-    @ExceptionHandler(TransactionNotFoundException.class)
-    public ResponseEntity<BaseResponse<?>> handleTransactionNotFoundException(TransactionNotFoundException e) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(BaseResponse.error(e.getMessage()));
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR) // Status 500
+    public BaseResponse<Void> handleGeneralException(Exception ex) {
+        // Ghi log lỗi ở đây để debug
+        // log.error("An unexpected error occurred: ", ex);
+        return BaseResponse.error("Đã có lỗi không mong muốn xảy ra: " + ex.getMessage());
     }
 }

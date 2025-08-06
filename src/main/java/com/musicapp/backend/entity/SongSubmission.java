@@ -38,9 +38,6 @@ public class SongSubmission {
     @Builder.Default
     private Boolean isPremium = false;
 
-    @Column(name = "premium_price", precision = 10, scale = 2)
-    private BigDecimal premiumPrice;
-
     @Enumerated(EnumType.STRING)
     @Builder.Default
     private SubmissionStatus status = SubmissionStatus.PENDING;

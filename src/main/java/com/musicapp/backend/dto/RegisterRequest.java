@@ -1,8 +1,7 @@
-// RegisterRequest.java
 package com.musicapp.backend.dto;
 
 import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -11,15 +10,19 @@ import lombok.NoArgsConstructor;
 
 @Data
 @Builder
-@NoArgsConstructor
 @AllArgsConstructor
+@NoArgsConstructor
 public class RegisterRequest {
-    @NotBlank(message = "Display name is required")
+
+    // <<< Khớp với cột display_name
+    @NotEmpty(message = "Tên hiển thị là bắt buộc.")
     private String displayName;
-    @Email(message = "Email should be valid")
-    @NotBlank(message = "Email is required")
+
+    @NotEmpty(message = "Email là bắt buộc.")
+    @Email(message = "Email không hợp lệ.")
     private String email;
-    @NotBlank(message = "Password is required")
-    @Size(min = 6, max = 32, message = "Password must be between 6 and 32 characters")
+
+    @NotEmpty(message = "Mật khẩu là bắt buộc.")
+    @Size(min = 6, max = 32, message = "Mật khẩu phải có độ dài từ 6 đến 32 ký tự.")
     private String password;
 }

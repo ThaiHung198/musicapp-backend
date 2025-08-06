@@ -23,6 +23,7 @@ public class SingerMapper {
                 .creatorId(singer.getCreator() != null ? singer.getCreator().getId() : null)
                 .creatorName(singer.getCreator() != null ? singer.getCreator().getDisplayName() : null)
                 .songCount(singerRepository.countSongsBySingerId(singer.getId()))
+                .status(singer.getStatus().name())
                 .build();
     }
 
@@ -36,6 +37,7 @@ public class SingerMapper {
                 .avatarPath(singer.getAvatarPath())
                 .creatorId(singer.getCreator() != null ? singer.getCreator().getId() : null)
                 .creatorName(singer.getCreator() != null ? singer.getCreator().getDisplayName() : null)
+                .status(singer.getStatus().name())
                 .build();
     }
 }

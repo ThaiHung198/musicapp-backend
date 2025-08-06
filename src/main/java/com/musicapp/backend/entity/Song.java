@@ -6,7 +6,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Set;
 
@@ -41,9 +40,6 @@ public class Song {
     @Column(name = "is_premium")
     @Builder.Default
     private Boolean isPremium = false;
-
-    @Column(name = "premium_price", precision = 10, scale = 2)
-    private BigDecimal premiumPrice;
 
     @Enumerated(EnumType.STRING)
     @Builder.Default
@@ -87,8 +83,6 @@ public class Song {
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "submission_id")
     private SongSubmission submission;
-
-    // The relationship to Transaction is removed as individual song purchases are no longer supported.
 
     public enum SongStatus {
         PENDING, APPROVED, REJECTED

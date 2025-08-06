@@ -15,7 +15,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -30,8 +29,7 @@ public class SongService {
     private final SingerRepository singerRepository;
     private final TagRepository tagRepository;
     private final UserRepository userRepository;
-    private final TransactionRepository transactionRepository;
-    private final UserSubscriptionRepository userSubscriptionRepository;
+    private final SubscriptionService subscriptionService; // Dependency đã được thêm vào
     private final SongMapper songMapper;
 
     public Page<SongDto> getAllApprovedSongs(Pageable pageable, User currentUser) {
@@ -125,6 +123,7 @@ public class SongService {
                 .creator(creator)
                 .singers(singers)
                 .tags(tags)
+                .isPremium(request.getIsPremium()) // Sử dụng isPremium từ request
                 .status(Song.SongStatus.PENDING)
                 .build();
 
@@ -227,50 +226,6 @@ public class SongService {
                 .map(song -> songMapper.toDto(song, null));
     }
 
-    public Page<SongDto> getAllSongsWithAccessCheck(Pageable pageable, String username) {
-        User user = null;
-        if (username != null) {
-            user = userRepository.findByEmail(username).orElse(null);
-        }
-
-        final User currentUser = user;
-        return songRepository.findByStatusOrderByCreatedAtDesc(Song.SongStatus.APPROVED, pageable)
-                .map(song -> songMapper.toDto(song, currentUser));
-    }
-
-    public Page<SongDto> searchSongsWithAccessCheck(String keyword, Pageable pageable, String username) {
-        User user = null;
-        if (username != null) {
-            user = userRepository.findByEmail(username).orElse(null);
-        }
-
-        final User currentUser = user;
-        return songRepository.searchApprovedSongs(keyword, Song.SongStatus.APPROVED, pageable)
-                .map(song -> songMapper.toDto(song, currentUser));
-    }
-
-    public Page<SongDto> getPremiumSongs(Pageable pageable, String username) {
-        User user = null;
-        if (username != null) {
-            user = userRepository.findByEmail(username).orElse(null);
-        }
-
-        final User currentUser = user;
-        return songRepository.findByIsPremiumTrueAndStatusOrderByCreatedAtDesc(Song.SongStatus.APPROVED, pageable)
-                .map(song -> songMapper.toDto(song, currentUser));
-    }
-
-    public Page<SongDto> getFreeSongs(Pageable pageable, String username) {
-        User user = null;
-        if (username != null) {
-            user = userRepository.findByEmail(username).orElse(null);
-        }
-
-        final User currentUser = user;
-        return songRepository.findByIsPremiumFalseAndStatusOrderByCreatedAtDesc(Song.SongStatus.APPROVED, pageable)
-                .map(song -> songMapper.toDto(song, currentUser));
-    }
-
     public boolean canUserAccessSong(Long songId, String username) {
         Song song = songRepository.findById(songId)
                 .orElseThrow(() -> new ResourceNotFoundException("Song not found with id: " + songId));
@@ -280,7 +235,7 @@ public class SongService {
             return true;
         }
 
-        // For premium songs, only logged-in users can access them
+        // For premium songs, user must be logged in
         if (username == null) {
             return false;
         }
@@ -288,15 +243,8 @@ public class SongService {
         User user = userRepository.findByEmail(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
 
-        // The concept of purchasing individual songs is removed.
-        // Access is now granted only via an active subscription.
-        return hasActiveSubscriptionAccess(user, UserSubscription.SubscriptionType.PREMIUM);
-    }
-
-    private boolean hasActiveSubscriptionAccess(User user, UserSubscription.SubscriptionType requiredType) {
-        return userSubscriptionRepository.findUserActiveSubscriptions(user, LocalDateTime.now())
-                .stream()
-                .anyMatch(subscription -> subscription.getSubscriptionType().ordinal() >= requiredType.ordinal());
+        // Access is granted only via an active subscription.
+        return subscriptionService.hasActivePremiumSubscription(user.getId());
     }
 
     public SongDto getSongWithAccessCheck(Long id, String username) {
@@ -312,7 +260,7 @@ public class SongService {
     }
 
     private boolean hasAdminRole(User user) {
-        return user.getRoles().stream()
-                .anyMatch(role -> role.getName().equals("ROLE_ADMIN"));
+        return user.getAuthorities().stream()
+                .anyMatch(grantedAuthority -> grantedAuthority.getAuthority().equals("ROLE_ADMIN"));
     }
 }

@@ -22,10 +22,6 @@ public class UserSubscription {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private SubscriptionType subscriptionType;
-
     @Column(name = "start_date", nullable = false)
     private LocalDateTime startDate;
 
@@ -58,38 +54,6 @@ public class UserSubscription {
     @OneToMany(mappedBy = "subscription", cascade = CascadeType.ALL)
     private Set<Transaction> transactions;
 
-    public enum SubscriptionType {
-        BASIC("Basic"),
-        PREMIUM("Premium"),
-        VIP("VIP");
-
-        private final String displayName;
-
-        SubscriptionType(String displayName) {
-            this.displayName = displayName;
-        }
-
-        public String getDisplayName() {
-            return displayName;
-        }
-
-        public BigDecimal getMonthlyPrice() {
-            return switch (this) {
-                case BASIC -> new BigDecimal("0.00");    // Free
-                case PREMIUM -> new BigDecimal("9.99");  // $9.99/month
-                case VIP -> new BigDecimal("19.99");     // $19.99/month
-            };
-        }
-
-        public int getMaxPremiumSongs() {
-            return switch (this) {
-                case BASIC -> 0;     // No premium songs
-                case PREMIUM -> 100; // 100 premium songs per month
-                case VIP -> -1;      // Unlimited
-            };
-        }
-    }
-
     public enum SubscriptionStatus {
         ACTIVE("Active"),
         EXPIRED("Expired"),
@@ -107,18 +71,9 @@ public class UserSubscription {
         }
     }
 
-    // Helper methods
+    // Helper method
     public boolean isActive() {
-        return status == SubscriptionStatus.ACTIVE && 
-               endDate.isAfter(LocalDateTime.now());
-    }
-
-    public boolean isPremiumOrVip() {
-        return subscriptionType == SubscriptionType.PREMIUM || 
-               subscriptionType == SubscriptionType.VIP;
-    }
-
-    public boolean canAccessPremiumSongs() {
-        return isActive() && isPremiumOrVip();
+        return status == SubscriptionStatus.ACTIVE &&
+                endDate.isAfter(LocalDateTime.now());
     }
 }

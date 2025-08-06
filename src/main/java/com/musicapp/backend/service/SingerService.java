@@ -14,6 +14,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.musicapp.backend.entity.Singer.SingerStatus;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -27,23 +28,37 @@ public class SingerService {
     private final UserRepository userRepository;
     private final SingerMapper singerMapper;
 
+    public List<SingerDto> getSelectableSingersForCreator(User creator) {
+        return singerRepository.findSelectableSingersForCreator(
+                        creator.getId(),
+                        SingerStatus.APPROVED,
+                        SingerStatus.PENDING
+                )
+                .stream()
+                .map(singerMapper::toDtoWithoutSongCount)
+                .collect(Collectors.toList());
+    }
+
     public Page<SingerDto> getAllSingers(Pageable pageable) {
-        return singerRepository.findAllOrderByNameAsc(pageable)
-                .map(singerMapper::toDto);
+        // --- THAY ĐỔI: Gọi phương thức mới đã được tối ưu, không cần map thủ công ---
+        return singerRepository.findAllWithSongCount(pageable);
     }
 
     public Page<SingerDto> searchSingers(String keyword, Pageable pageable) {
-        return singerRepository.findByNameContainingIgnoreCaseOrderByNameAsc(keyword, pageable)
-                .map(singerMapper::toDto);
+        // --- THAY ĐỔI: Gọi phương thức tìm kiếm mới đã được tối ưu ---
+        return singerRepository.searchAllWithSongCount(keyword, pageable);
     }
 
     public SingerDto getSingerById(Long id) {
+        // GHI CHÚ: SingerMapper vẫn hữu ích cho việc lấy chi tiết một ca sĩ
         Singer singer = singerRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Singer not found with id: " + id));
         return singerMapper.toDto(singer);
     }
 
     public List<SingerDto> getAllSingersAsList() {
+        // GHI CHÚ: Phương thức này cũng nên được tối ưu nếu được sử dụng thường xuyên
+        // Tạm thời giữ lại để không gây lỗi ở các nơi khác
         return singerRepository.findAllOrderByNameAsc(Pageable.unpaged())
                 .getContent()
                 .stream()
@@ -56,7 +71,6 @@ public class SingerService {
         User creator = userRepository.findByEmail(creatorUsername)
                 .orElseThrow(() -> new ResourceNotFoundException("Creator user not found with email: " + creatorUsername));
 
-        // Check if singer already exists by name or email
         if (singerRepository.existsByNameIgnoreCase(request.getName())) {
             throw new ResourceAlreadyExistsException("Singer already exists with name: " + request.getName());
         }
@@ -69,6 +83,7 @@ public class SingerService {
                 .email(request.getEmail())
                 .avatarPath(request.getAvatarPath())
                 .creator(creator)
+                .status(SingerStatus.PENDING)
                 .build();
 
         Singer savedSinger = singerRepository.save(singer);
@@ -80,14 +95,12 @@ public class SingerService {
         Singer singer = singerRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Singer not found with id: " + id));
 
-        // Check if new name conflicts with another existing singer
-        singerRepository.findByName(request.getName()).ifPresent(existingSinger -> {
+        singerRepository.findByNameIgnoreCase(request.getName()).ifPresent(existingSinger -> {
             if (!existingSinger.getId().equals(id)) {
                 throw new ResourceAlreadyExistsException("Another singer already exists with name: " + request.getName());
             }
         });
 
-        // Check if new email conflicts with another existing singer
         singerRepository.findByEmail(request.getEmail()).ifPresent(existingSinger -> {
             if (!existingSinger.getId().equals(id)) {
                 throw new ResourceAlreadyExistsException("Another singer already exists with email: " + request.getEmail());
