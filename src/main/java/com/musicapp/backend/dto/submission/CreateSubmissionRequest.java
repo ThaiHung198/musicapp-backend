@@ -1,4 +1,4 @@
-package com.musicapp.backend.dto.song;
+package com.musicapp.backend.dto.submission;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -15,7 +15,7 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class CreateSongRequest {
+public class CreateSubmissionRequest {
     
     @NotBlank(message = "Song title is required")
     private String title;
@@ -27,15 +27,14 @@ public class CreateSongRequest {
     
     private String thumbnailPath;
     
-    @NotNull(message = "At least one singer is required")
-    private List<Long> singerIds;
-    
-    private List<Long> tagIds;
-    
-    // Premium features
     @Builder.Default
     private Boolean isPremium = false;
     
     @DecimalMin(value = "0.0", message = "Premium price must be non-negative")
     private BigDecimal premiumPrice;
+    
+    @NotNull(message = "At least one singer is required")
+    private List<Long> singerIds;
+    
+    private List<Long> tagIds;
 }

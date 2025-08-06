@@ -38,22 +38,22 @@ public class User implements UserDetails {
 
     @Column(name = "phone_number")
     private String phoneNumber;
-    
+
     @Column(name = "avatar_path")
     private String avatarPath;
-    
+
     @Column(name = "date_of_birth")
     private LocalDate dateOfBirth;
-    
+
     private String gender;
-    
+
     @Builder.Default
     private String provider = "local"; // 'local' or 'google'
-    
+
     @Column(name = "created_at")
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
-    
+
     @Column(name = "updated_at")
     @Builder.Default
     private LocalDateTime updatedAt = LocalDateTime.now();
@@ -65,19 +65,34 @@ public class User implements UserDetails {
             inverseJoinColumns = @JoinColumn(name = "role_id")
     )
     private Set<Role> roles;
-    
+
     // Relationships
     @OneToMany(mappedBy = "creator", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Set<Song> createdSongs;
-    
+
     @OneToMany(mappedBy = "creator", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Set<Playlist> createdPlaylists;
-    
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<Like> likes;
-    
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<Comment> comments;
+
+    // Song submissions
+    @OneToMany(mappedBy = "creator", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private Set<SongSubmission> songSubmissions;
+
+    @OneToMany(mappedBy = "reviewer", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private Set<SongSubmission> reviewedSubmissions;
+
+    // Transactions
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private Set<Transaction> transactions;
+
+    // Subscriptions
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private Set<UserSubscription> subscriptions;
 
     // --- Các phương thức của UserDetails ---
     @Override

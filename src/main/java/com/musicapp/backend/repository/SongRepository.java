@@ -62,4 +62,8 @@ public interface SongRepository extends JpaRepository<Song, Long> {
     
     // Count songs by creator
     long countByCreatorId(Long creatorId);
+    
+    // Premium content queries
+    Page<Song> findByIsPremiumTrueAndStatusOrderByCreatedAtDesc(Song.SongStatus status, Pageable pageable);
+    Page<Song> findByIsPremiumFalseAndStatusOrderByCreatedAtDesc(Song.SongStatus status, Pageable pageable);
 }

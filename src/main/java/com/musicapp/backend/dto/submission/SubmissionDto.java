@@ -1,4 +1,4 @@
-package com.musicapp.backend.dto.song;
+package com.musicapp.backend.dto.submission;
 
 import com.musicapp.backend.dto.singer.SingerDto;
 import com.musicapp.backend.dto.tag.TagDto;
@@ -15,32 +15,37 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class SongDto {
+public class SubmissionDto {
     private Long id;
     private String title;
     private String description;
     private String filePath;
     private String thumbnailPath;
-    private Long listenCount;
-    private String status;
-    private LocalDateTime createdAt;
-    
-    // Premium features
     private Boolean isPremium;
     private BigDecimal premiumPrice;
-    private Boolean canAccess; // Can current user access this song
-    private Boolean isPurchased; // Has current user purchased this premium song
+    private String status;
+    private LocalDateTime submissionDate;
+    private LocalDateTime reviewDate;
+    private String rejectionReason;
     
     // Creator info
     private Long creatorId;
     private String creatorName;
+    private String creatorEmail;
     
-    // Related entities
+    // Reviewer info (for admin view)
+    private Long reviewerId;
+    private String reviewerName;
+    
+    // Associated data
     private List<SingerDto> singers;
     private List<TagDto> tags;
     
-    // Interaction counts
-    private Long likeCount;
-    private Long commentCount;
-    private Boolean isLikedByCurrentUser;
+    // Approved song info (if approved)
+    private Long approvedSongId;
+    
+    // Permissions
+    private Boolean canEdit;
+    private Boolean canReview;
+    private Boolean canDelete;
 }
