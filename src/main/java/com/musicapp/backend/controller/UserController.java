@@ -1,4 +1,3 @@
-// src/main/java/com/musicapp/backend/controller/UserController.java
 package com.musicapp.backend.controller;
 
 import com.musicapp.backend.dto.BaseResponse;
