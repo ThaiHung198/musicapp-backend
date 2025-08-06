@@ -1,4 +1,3 @@
-// AuthenticationController.java
 package com.musicapp.backend.controller;
 
 import com.musicapp.backend.dto.AuthenticationRequest;

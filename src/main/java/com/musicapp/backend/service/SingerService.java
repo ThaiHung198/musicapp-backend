@@ -55,22 +55,25 @@ public class SingerService {
     }
 
     @Transactional
-    public SingerDto createSinger(CreateSingerRequest request, String creatorUsername) {
-        User creator = userRepository.findByEmail(creatorUsername)
-                .orElseThrow(() -> new ResourceNotFoundException("Creator user not found with email: " + creatorUsername));
+    public SingerDto createSinger(CreateSingerRequest request, User userRequesting) {
 
-        if (singerRepository.existsByNameIgnoreCase(request.getName())) {
-            throw new ResourceAlreadyExistsException("Singer already exists with name: " + request.getName());
-        }
+        // Yêu cầu 1: Email phải là duy nhất
         if (singerRepository.existsByEmail(request.getEmail())) {
             throw new ResourceAlreadyExistsException("Singer already exists with email: " + request.getEmail());
+        }
+
+        // Kiểm tra tên trùng (tùy chọn, nhưng là một good practice)
+        if (singerRepository.existsByNameIgnoreCase(request.getName())) {
+            throw new ResourceAlreadyExistsException("Singer already exists with name: " + request.getName());
         }
 
         Singer singer = Singer.builder()
                 .name(request.getName())
                 .email(request.getEmail())
                 .avatarPath(request.getAvatarPath())
-                .creator(creator)
+                // Yêu cầu 2: Ca sĩ do Admin tạo không thuộc quyền quản lý của NPT nào
+                // Logic: Nếu người tạo là Admin, không gán creator (creator_id sẽ là NULL)
+                .creator(null)
                 .build();
 
         Singer savedSinger = singerRepository.save(singer);

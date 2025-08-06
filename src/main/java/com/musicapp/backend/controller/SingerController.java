@@ -4,6 +4,7 @@ import com.musicapp.backend.dto.BaseResponse;
 import com.musicapp.backend.dto.PagedResponse;
 import com.musicapp.backend.dto.singer.CreateSingerRequest;
 import com.musicapp.backend.dto.singer.SingerDto;
+import com.musicapp.backend.entity.User;
 import com.musicapp.backend.service.SingerService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +14,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -59,9 +61,9 @@ public class SingerController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BaseResponse<SingerDto>> createSinger(
             @Valid @RequestBody CreateSingerRequest request,
-            Authentication authentication) {
-        String creatorUsername = authentication.getName();
-        SingerDto singer = singerService.createSinger(request, creatorUsername);
+            @AuthenticationPrincipal User admin) { // Lấy trực tiếp đối tượng User
+
+        SingerDto singer = singerService.createSinger(request, admin);
         return ResponseEntity.ok(BaseResponse.success("Singer created successfully", singer));
     }
 
