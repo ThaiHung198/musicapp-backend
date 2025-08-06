@@ -1,6 +1,7 @@
+// src/main/java/com/musicapp/backend/dto/user/UpdateProfileRequest.java
 package com.musicapp.backend.dto.user;
 
-import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotEmpty; // <<< THÊM IMPORT
 import jakarta.validation.constraints.Pattern;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -14,18 +15,20 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UpdateProfileRequest {
-    
+
+    // <<< THÊM ANNOTATION BẮT BUỘC
+    @NotEmpty(message = "Tên hiển thị không được để trống.")
     private String displayName;
-    
-    @Email(message = "Invalid email format")
-    private String email;
-    
-    @Pattern(regexp = "^[0-9]{10,11}$", message = "Phone number must be 10-11 digits")
+
+    // Email không cần vì không sửa được, chúng ta sẽ bỏ qua nó trong logic service
+
+    @Pattern(regexp = "^[0-9]{10,11}$", message = "Số điện thoại phải có 10-11 chữ số.")
     private String phoneNumber;
-    
-    private String avatarPath;
+
+    // Avatar sẽ được xử lý trong một API riêng (upload file), tạm thời bỏ qua
+
     private LocalDate dateOfBirth;
-    
-    @Pattern(regexp = "^(Male|Female|Other)$", message = "Gender must be Male, Female, or Other")
+
+    @Pattern(regexp = "^(Male|Female|Other)$", message = "Giới tính phải là Male, Female, hoặc Other.")
     private String gender;
 }
