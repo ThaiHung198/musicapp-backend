@@ -15,6 +15,11 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.musicapp.backend.dto.submission.CreateSubmissionRequest.NewSingerInfo;
+import com.musicapp.backend.entity.Singer.SingerStatus;
+import com.musicapp.backend.exception.ResourceAlreadyExistsException;
+import java.util.ArrayList;
+import java.util.List;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -38,29 +43,62 @@ public class SubmissionService {
     // Creator methods
     @Transactional
     public SubmissionDto createSubmission(CreateSubmissionRequest request, User creator) {
-        // Validate singers exist
-        Set<Singer> singers = new HashSet<>();
-        for (Long singerId : request.getSingerIds()) {
-            Singer singer = singerRepository.findById(singerId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Singer not found with id: " + singerId));
-            singers.add(singer);
+        // 1. Validate request đầu vào
+        if ((request.getExistingSingerIds() == null || request.getExistingSingerIds().isEmpty()) &&
+                (request.getNewSingers() == null || request.getNewSingers().isEmpty())) {
+            throw new BadRequestException("At least one existing or new singer is required.");
         }
 
-        // Validate tags exist (if provided)
-        Set<Tag> tags = new HashSet<>();
-        if (request.getTagIds() != null) {
-            for (Long tagId : request.getTagIds()) {
-                Tag tag = tagRepository.findById(tagId)
-                        .orElseThrow(() -> new ResourceNotFoundException("Tag not found with id: " + tagId));
-                tags.add(tag);
+        Set<Singer> allSingersForSubmission = new HashSet<>();
+
+        // 2. Xử lý và tạo ca sĩ mới với status PENDING
+        if (request.getNewSingers() != null && !request.getNewSingers().isEmpty()) {
+            for (NewSingerInfo newSingerInfo : request.getNewSingers()) {
+                // Kiểm tra email ca sĩ mới có tồn tại trong hệ thống chưa
+                if (singerRepository.existsByEmail(newSingerInfo.getEmail())) {
+                    throw new ResourceAlreadyExistsException("A singer with email '" + newSingerInfo.getEmail() + "' already exists.");
+                }
+
+                // Tạo entity Singer mới
+                Singer newSinger = Singer.builder()
+                        .name(newSingerInfo.getName())
+                        .email(newSingerInfo.getEmail())
+                        .avatarPath(newSingerInfo.getAvatarPath())
+                        .creator(creator) // Gán quyền quản lý cho creator này
+                        .status(SingerStatus.PENDING) // Quan trọng: tạo với status PENDING
+                        .build();
+
+                // Lưu ca sĩ mới vào DB và thêm vào danh sách ca sĩ của submission này
+                allSingersForSubmission.add(singerRepository.save(newSinger));
             }
         }
 
-        // Validate premium price if premium song
-        if (request.getIsPremium() && (request.getPremiumPrice() == null || request.getPremiumPrice().compareTo(java.math.BigDecimal.ZERO) <= 0)) {
-            throw new BadRequestException("Premium price is required for premium songs and must be greater than 0");
+        // 3. Xử lý và xác thực các ca sĩ đã có
+        if (request.getExistingSingerIds() != null && !request.getExistingSingerIds().isEmpty()) {
+            List<Singer> existingSingers = singerRepository.findAllById(request.getExistingSingerIds());
+
+            // Creator chỉ được phép sử dụng ca sĩ đã APPROVED hoặc ca sĩ PENDING do chính họ tạo
+            for (Singer singer : existingSingers) {
+                boolean isApproved = singer.getStatus() == SingerStatus.APPROVED;
+                boolean isOwnPending = singer.getStatus() == SingerStatus.PENDING &&
+                        singer.getCreator() != null &&
+                        singer.getCreator().getId().equals(creator.getId());
+
+                if (!(isApproved || isOwnPending)) {
+                    throw new UnauthorizedException("You do not have permission to use the singer: " + singer.getName());
+                }
+            }
+            allSingersForSubmission.addAll(existingSingers);
         }
 
+        // 4. Xử lý tags (logic không đổi)
+        Set<Tag> tags = new HashSet<>();
+        if (request.getTagIds() != null) {
+            // Dùng findAllById để hiệu quả hơn
+            tags.addAll(tagRepository.findAllById(request.getTagIds()));
+        }
+
+        // 5. Tạo SongSubmission entity
         SongSubmission submission = SongSubmission.builder()
                 .title(request.getTitle())
                 .description(request.getDescription())
@@ -70,27 +108,38 @@ public class SubmissionService {
                 .creator(creator)
                 .build();
 
+        // Lưu submission chính để lấy ID
         SongSubmission savedSubmission = submissionRepository.save(submission);
 
-        // Create singer associations
-        for (Singer singer : singers) {
-            SubmissionSingers submissionSinger = SubmissionSingers.builder()
+        // 6. Tạo các liên kết trong bảng `submission_singers` và `submission_tags`
+        List<SubmissionSingers> submissionSingersList = new ArrayList<>();
+        for (Singer singer : allSingersForSubmission) {
+            submissionSingersList.add(SubmissionSingers.builder()
                     .submission(savedSubmission)
                     .singer(singer)
-                    .build();
-            submissionSingersRepository.save(submissionSinger);
+                    .build());
+        }
+        if (!submissionSingersList.isEmpty()) {
+            submissionSingersRepository.saveAll(submissionSingersList);
         }
 
-        // Create tag associations
+        List<SubmissionTags> submissionTagsList = new ArrayList<>();
         for (Tag tag : tags) {
-            SubmissionTags submissionTag = SubmissionTags.builder()
+            submissionTagsList.add(SubmissionTags.builder()
                     .submission(savedSubmission)
                     .tag(tag)
-                    .build();
-            submissionTagsRepository.save(submissionTag);
+                    .build());
+        }
+        if (!submissionTagsList.isEmpty()) {
+            submissionTagsRepository.saveAll(submissionTagsList);
         }
 
-        return submissionMapper.toDto(savedSubmission, creator);
+        // 7. Load lại submission từ DB để đảm bảo tất cả các quan hệ đã được thiết lập
+        // trước khi truyền vào mapper.
+        SongSubmission finalSubmission = submissionRepository.findById(savedSubmission.getId())
+                .orElseThrow(() -> new IllegalStateException("Failed to retrieve saved submission"));
+
+        return submissionMapper.toDto(finalSubmission, creator);
     }
 
     public Page<SubmissionDto> getMySubmissions(User creator, Pageable pageable) {

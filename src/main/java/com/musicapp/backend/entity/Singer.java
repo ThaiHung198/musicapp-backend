@@ -33,7 +33,17 @@ public class Singer {
     @JoinColumn(name = "creator_id")
     private User creator;
 
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private SingerStatus status = SingerStatus.PENDING;
+
     // Relationships
     @ManyToMany(mappedBy = "singers", fetch = FetchType.LAZY)
     private Set<Song> songs;
+
+    public enum SingerStatus {
+        PENDING,
+        APPROVED,
+        REJECTED
+    }
 }
