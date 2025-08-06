@@ -26,6 +26,15 @@ public class SingerController {
 
     private final SingerService singerService;
 
+    @GetMapping("/selectable")
+    @PreAuthorize("hasRole('CREATOR')")
+    public ResponseEntity<BaseResponse<List<SingerDto>>> getSelectableSingers(
+            @AuthenticationPrincipal User creator
+    ) {
+        List<SingerDto> singers = singerService.getSelectableSingersForCreator(creator);
+        return ResponseEntity.ok(BaseResponse.success(singers));
+    }
+
     @GetMapping
     public ResponseEntity<BaseResponse<PagedResponse<SingerDto>>> getAllSingers(
             @RequestParam(defaultValue = "0") int page,
@@ -61,9 +70,9 @@ public class SingerController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BaseResponse<SingerDto>> createSinger(
             @Valid @RequestBody CreateSingerRequest request,
-            @AuthenticationPrincipal User admin) { // Lấy trực tiếp đối tượng User
-
-        SingerDto singer = singerService.createSinger(request, admin);
+            Authentication authentication) {
+        String creatorUsername = authentication.getName();
+        SingerDto singer = singerService.createSinger(request, creatorUsername);
         return ResponseEntity.ok(BaseResponse.success("Singer created successfully", singer));
     }
 

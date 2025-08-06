@@ -14,6 +14,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.musicapp.backend.entity.Singer.SingerStatus;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -26,6 +27,17 @@ public class SingerService {
     private final SingerRepository singerRepository;
     private final UserRepository userRepository;
     private final SingerMapper singerMapper;
+
+    public List<SingerDto> getSelectableSingersForCreator(User creator) {
+        return singerRepository.findSelectableSingersForCreator(
+                        creator.getId(),
+                        SingerStatus.APPROVED,
+                        SingerStatus.PENDING
+                )
+                .stream()
+                .map(singerMapper::toDtoWithoutSongCount)
+                .collect(Collectors.toList());
+    }
 
     public Page<SingerDto> getAllSingers(Pageable pageable) {
         // --- THAY ĐỔI: Gọi phương thức mới đã được tối ưu, không cần map thủ công ---
@@ -55,25 +67,23 @@ public class SingerService {
     }
 
     @Transactional
-    public SingerDto createSinger(CreateSingerRequest request, User userRequesting) {
+    public SingerDto createSinger(CreateSingerRequest request, String creatorUsername) {
+        User creator = userRepository.findByEmail(creatorUsername)
+                .orElseThrow(() -> new ResourceNotFoundException("Creator user not found with email: " + creatorUsername));
 
-        // Yêu cầu 1: Email phải là duy nhất
-        if (singerRepository.existsByEmail(request.getEmail())) {
-            throw new ResourceAlreadyExistsException("Singer already exists with email: " + request.getEmail());
-        }
-
-        // Kiểm tra tên trùng (tùy chọn, nhưng là một good practice)
         if (singerRepository.existsByNameIgnoreCase(request.getName())) {
             throw new ResourceAlreadyExistsException("Singer already exists with name: " + request.getName());
+        }
+        if (singerRepository.existsByEmail(request.getEmail())) {
+            throw new ResourceAlreadyExistsException("Singer already exists with email: " + request.getEmail());
         }
 
         Singer singer = Singer.builder()
                 .name(request.getName())
                 .email(request.getEmail())
                 .avatarPath(request.getAvatarPath())
-                // Yêu cầu 2: Ca sĩ do Admin tạo không thuộc quyền quản lý của NPT nào
-                // Logic: Nếu người tạo là Admin, không gán creator (creator_id sẽ là NULL)
-                .creator(null)
+                .creator(creator)
+                .status(SingerStatus.PENDING)
                 .build();
 
         Singer savedSinger = singerRepository.save(singer);

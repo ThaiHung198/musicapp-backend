@@ -8,7 +8,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import com.musicapp.backend.entity.Singer.SingerStatus;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -26,17 +28,18 @@ public interface SingerRepository extends JpaRepository<Singer, Long> {
     Long countSongsBySingerId(@Param("singerId") Long singerId);
 
     // --- THÊM MỚI: Phương thức tối ưu để lấy tất cả ca sĩ ---
-    @Query("SELECT new com.musicapp.backend.dto.singer.SingerDto(s.id, s.name, s.email, s.avatarPath, COUNT(song.id), s.creator.id, s.creator.displayName) " +
+    @Query("SELECT new com.musicapp.backend.dto.singer.SingerDto(s.id, s.name, s.email, s.avatarPath, COUNT(song.id), s.creator.id, s.creator.displayName, s.status) " + // Xóa .name
             "FROM Singer s LEFT JOIN s.songs song " +
-            "GROUP BY s.id, s.name, s.email, s.avatarPath, s.creator.id, s.creator.displayName " +
+            "WHERE s.status = com.musicapp.backend.entity.Singer.SingerStatus.APPROVED " +
+            "GROUP BY s.id, s.name, s.email, s.avatarPath, s.creator.id, s.creator.displayName, s.status " +
             "ORDER BY s.name ASC")
     Page<SingerDto> findAllWithSongCount(Pageable pageable);
 
     // --- THÊM MỚI: Phương thức tối ưu để tìm kiếm ca sĩ ---
-    @Query("SELECT new com.musicapp.backend.dto.singer.SingerDto(s.id, s.name, s.email, s.avatarPath, COUNT(song.id), s.creator.id, s.creator.displayName) " +
+    @Query("SELECT new com.musicapp.backend.dto.singer.SingerDto(s.id, s.name, s.email, s.avatarPath, COUNT(song.id), s.creator.id, s.creator.displayName, s.status) " + // Xóa .name
             "FROM Singer s LEFT JOIN s.songs song " +
-            "WHERE LOWER(s.name) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
-            "GROUP BY s.id, s.name, s.email, s.avatarPath, s.creator.id, s.creator.displayName " +
+            "WHERE s.status = com.musicapp.backend.entity.Singer.SingerStatus.APPROVED AND LOWER(s.name) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+            "GROUP BY s.id, s.name, s.email, s.avatarPath, s.creator.id, s.creator.displayName, s.status " +
             "ORDER BY s.name ASC")
     Page<SingerDto> searchAllWithSongCount(@Param("keyword") String keyword, Pageable pageable);
 
@@ -46,4 +49,11 @@ public interface SingerRepository extends JpaRepository<Singer, Long> {
 
     @Query("SELECT s FROM Singer s WHERE s.name LIKE %:keyword% ORDER BY s.name ASC")
     Page<Singer> findByNameContainingIgnoreCaseOrderByNameAsc(@Param("keyword") String keyword, Pageable pageable);
+
+    @Query("SELECT s FROM Singer s WHERE s.status = :approvedStatus OR (s.creator.id = :creatorId AND s.status = :pendingStatus) ORDER BY s.name ASC")
+    List<Singer> findSelectableSingersForCreator(
+            @Param("creatorId") Long creatorId,
+            @Param("approvedStatus") SingerStatus approvedStatus,
+            @Param("pendingStatus") SingerStatus pendingStatus
+    );
 }
