@@ -1,54 +1,105 @@
-# Music App Backend - Base Architecture
+# Music App Backend - Complete Architecture v2.3
 
 ## 📋 Overview
 
-Đây là base architecture hoàn chỉnh cho Music App Backend, được thiết kế theo chuẩn Spring Boot với tất cả các tính năng cần thiết để team backend có thể phát triển dễ dàng.
+Đây là base architecture hoàn chỉnh cho Music App Backend với Database Schema v2.3, được thiết kế theo chuẩn Spring Boot với đầy đủ tính năng submission workflow, premium content, subscription system, và transaction processing.
+
+## 🚀 New Features in v2.3
+
+### ✨ **Song Submission Workflow**
+- Complete submission process từ creator đến admin approval
+- Status tracking (PENDING → APPROVED/REJECTED)
+- Review system với feedback và suggested changes
+- Bulk operations cho admin
+
+### 💎 **Premium Content System**
+- Premium songs với individual pricing
+- Access control based on purchase/subscription
+- Revenue tracking và analytics
+- Creator earnings management
+
+### 🎯 **Subscription Management**
+- Multi-tier subscription (Basic/Premium/VIP)
+- Auto-renewal functionality
+- Subscription analytics và revenue tracking
+- Flexible pricing và duration
+
+### 💳 **Transaction Processing**
+- Complete wallet system
+- Deposit/Withdrawal operations
+- Premium song purchases
+- Subscription payments
+- Transaction retry mechanism
+
+### ⚡ **Scheduled Tasks**
+- Auto subscription renewals
+- Expired subscription cleanup
+- Failed transaction retry
+- Analytics generation
 
 ## 🏗️ Architecture Components
 
-### 1. **Entity Layer** (`entity/`)
-- ✅ `User` - Quản lý người dùng với OAuth support
-- ✅ `Role` - Phân quyền (USER, CREATOR, ADMIN)  
-- ✅ `Singer` - Quản lý ca sĩ
+### 1. **Enhanced Entity Layer** (`entity/`)
+- ✅ `User` - Enhanced with balance và subscription relationships
+- ✅ `Role` - Role-based access control (USER, CREATOR, ADMIN)  
+- ✅ `Singer` - Ca sĩ management
 - ✅ `Tag` - Thể loại nhạc
-- ✅ `Song` - Bài hát với approval workflow
-- ✅ `Playlist` - Playlist công khai và cá nhân
-- ✅ `Like` - Polymorphic likes cho songs/playlists
-- ✅ `Comment` - Polymorphic comments cho songs/playlists
+- ✅ `Song` - Enhanced với premium features và submission workflow
+- ✅ `Playlist` - Playlist management
+- ✅ `Like` - Polymorphic likes
+- ✅ `Comment` - Polymorphic comments
+- 🆕 `SongSubmission` - Complete submission workflow
+- 🆕 `SubmissionSingers` - Many-to-many relationship
+- 🆕 `SubmissionTags` - Many-to-many relationship  
+- 🆕 `Transaction` - Complete transaction system
+- 🆕 `UserSubscription` - Multi-tier subscription system
 
-### 2. **Repository Layer** (`repository/`)
-- ✅ Custom queries với JPA
-- ✅ Pagination support
-- ✅ Search functionality
-- ✅ Statistics queries
+### 2. **Advanced Repository Layer** (`repository/`)
+- ✅ Enhanced với complex queries cho premium content
+- ✅ Subscription và transaction analytics
+- ✅ Revenue calculations
+- ✅ Advanced search và filtering
+- 🆕 `SongSubmissionRepository` - Submission queries
+- 🆕 `SubmissionSingersRepository` - Association queries
+- 🆕 `SubmissionTagsRepository` - Association queries
+- 🆕 `TransactionRepository` - Financial queries
+- 🆕 `UserSubscriptionRepository` - Subscription queries
 
-### 3. **Service Layer** (`service/`)
-- ✅ `SingerService` - CRUD operations cho singers
-- ✅ `TagService` - CRUD operations cho tags  
-- ✅ `SongService` - Quản lý bài hát với approval workflow
-- ✅ `LikeService` - Like/Unlike functionality
-- ✅ `AuthenticationService` - Existing authentication
+### 3. **Comprehensive Service Layer** (`service/`)
+- ✅ Enhanced `SongService` với premium access control
+- ✅ Existing services (SingerService, TagService, LikeService)
+- 🆕 `SubmissionService` - Complete submission workflow
+- 🆕 `SubscriptionService` - Subscription lifecycle management
+- 🆕 `TransactionService` - Payment processing simulation
+- 🆕 `SubscriptionSchedulerService` - Automated background tasks
 
-### 4. **Controller Layer** (`controller/`)
-- ✅ `SingerController` - Singer management APIs
-- ✅ `TagController` - Tag management APIs
-- ✅ `SongController` - Song management APIs với role-based access
-- ✅ `LikeController` - Like/Unlike APIs
-- ✅ `AuthenticationController` - Existing auth APIs
+### 4. **Complete Controller Layer** (`controller/`)
+- ✅ Enhanced với role-based authorization
+- ✅ Existing controllers (SingerController, TagController, SongController, LikeController)
+- 🆕 `SubmissionController` - Submission management APIs
+- 🆕 `SubscriptionController` - Subscription management APIs  
+- 🆕 `TransactionController` - Transaction và wallet APIs
 
-### 5. **DTO Layer** (`dto/`)
-- ✅ `BaseResponse<T>` - Standardized API response
-- ✅ `PagedResponse<T>` - Pagination wrapper
-- ✅ Request/Response DTOs cho tất cả entities
-- ✅ Validation annotations
+### 5. **Enhanced DTO Layer** (`dto/`)
+- ✅ Enhanced `SongDto` với premium access fields
+- ✅ Standardized response formats
+- 🆕 Submission DTOs (SubmissionDto, CreateSubmissionRequest, ReviewSubmissionRequest)
+- 🆕 Transaction DTOs (TransactionDto, CreateTransactionRequest)
+- 🆕 Subscription DTOs (SubscriptionDto, CreateSubscriptionRequest)
 
-### 6. **Mapper Layer** (`mapper/`)
-- ✅ Entity to DTO conversion
+### 6. **Enhanced Mapper Layer** (`mapper/`)
+- ✅ Enhanced `SongMapper` với premium access control
 - ✅ Performance optimized mappings
+- 🆕 `SubmissionMapper` - Submission entity mapping
+- 🆕 `TransactionMapper` - Transaction entity mapping
+- 🆕 `SubscriptionMapper` - Subscription entity mapping
 
-### 7. **Exception Handling** (`exception/`)
-- ✅ `GlobalExceptionHandler` - Centralized error handling
-- ✅ Custom exception classes
+### 7. **Enhanced Exception Handling** (`exception/`)
+- ✅ Comprehensive error handling
+- 🆕 `InsufficientFundsException` - Payment errors
+- 🆕 `SubmissionNotFoundException` - Submission errors
+- 🆕 `SubscriptionNotFoundException` - Subscription errors
+- 🆕 `TransactionNotFoundException` - Transaction errors
 - ✅ Validation error handling
 
 ## 🔐 Security & Authorization

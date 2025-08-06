@@ -9,27 +9,33 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class SingerMapper {
-    
+
     private final SingerRepository singerRepository;
-    
+
     public SingerDto toDto(Singer singer) {
         if (singer == null) return null;
-        
+
         return SingerDto.builder()
                 .id(singer.getId())
                 .name(singer.getName())
+                .email(singer.getEmail())
                 .avatarPath(singer.getAvatarPath())
+                .creatorId(singer.getCreator() != null ? singer.getCreator().getId() : null)
+                .creatorName(singer.getCreator() != null ? singer.getCreator().getDisplayName() : null)
                 .songCount(singerRepository.countSongsBySingerId(singer.getId()))
                 .build();
     }
-    
+
     public SingerDto toDtoWithoutSongCount(Singer singer) {
         if (singer == null) return null;
-        
+
         return SingerDto.builder()
                 .id(singer.getId())
                 .name(singer.getName())
+                .email(singer.getEmail())
                 .avatarPath(singer.getAvatarPath())
+                .creatorId(singer.getCreator() != null ? singer.getCreator().getId() : null)
+                .creatorName(singer.getCreator() != null ? singer.getCreator().getDisplayName() : null)
                 .build();
     }
 }

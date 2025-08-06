@@ -12,6 +12,9 @@ import lombok.NoArgsConstructor;
 public class SingerDto {
     private Long id;
     private String name;
+    private String email;
     private String avatarPath;
     private Long songCount;
+    private Long creatorId;
+    private String creatorName;
 }

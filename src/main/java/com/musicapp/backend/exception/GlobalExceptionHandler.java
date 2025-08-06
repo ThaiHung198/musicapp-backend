@@ -56,4 +56,28 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(BaseResponse.error("An unexpected error occurred: " + e.getMessage()));
     }
+    
+    @ExceptionHandler(InsufficientFundsException.class)
+    public ResponseEntity<BaseResponse<?>> handleInsufficientFundsException(InsufficientFundsException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(BaseResponse.error(e.getMessage()));
+    }
+    
+    @ExceptionHandler(SubmissionNotFoundException.class)
+    public ResponseEntity<BaseResponse<?>> handleSubmissionNotFoundException(SubmissionNotFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(BaseResponse.error(e.getMessage()));
+    }
+    
+    @ExceptionHandler(SubscriptionNotFoundException.class)
+    public ResponseEntity<BaseResponse<?>> handleSubscriptionNotFoundException(SubscriptionNotFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(BaseResponse.error(e.getMessage()));
+    }
+    
+    @ExceptionHandler(TransactionNotFoundException.class)
+    public ResponseEntity<BaseResponse<?>> handleTransactionNotFoundException(TransactionNotFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(BaseResponse.error(e.getMessage()));
+    }
 }
