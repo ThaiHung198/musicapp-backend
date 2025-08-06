@@ -67,7 +67,6 @@ public class SubmissionService {
                 .filePath(request.getFilePath())
                 .thumbnailPath(request.getThumbnailPath())
                 .isPremium(request.getIsPremium())
-                .premiumPrice(request.getPremiumPrice())
                 .creator(creator)
                 .build();
 
@@ -186,7 +185,6 @@ public class SubmissionService {
                     .filePath(submission.getFilePath())
                     .thumbnailPath(submission.getThumbnailPath())
                     .isPremium(submission.getIsPremium())
-                    .premiumPrice(submission.getPremiumPrice())
                     .creator(submission.getCreator())
                     .status(Song.SongStatus.APPROVED)
                     .submission(submission)
@@ -290,7 +288,6 @@ public class SubmissionService {
         submission.setFilePath(request.getFilePath());
         submission.setThumbnailPath(request.getThumbnailPath());
         submission.setIsPremium(request.getIsPremium());
-        submission.setPremiumPrice(request.getPremiumPrice());
 
         SongSubmission updatedSubmission = submissionRepository.save(submission);
         return submissionMapper.toDto(updatedSubmission, user);

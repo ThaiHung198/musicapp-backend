@@ -15,7 +15,7 @@ import java.util.List;
 @AllArgsConstructor
 public class SubscriptionDto {
     private Long id;
-    private String subscriptionType;
+    // private String subscriptionType; // XOÁ BỎ
     private LocalDateTime startDate;
     private LocalDateTime endDate;
     private BigDecimal price;
@@ -23,21 +23,21 @@ public class SubscriptionDto {
     private Boolean autoRenewal;
     private LocalDateTime createdAt;
     private LocalDateTime cancelledAt;
-    
+
     // User info
     private Long userId;
     private String userName;
     private String userEmail;
-    
-    // Subscription benefits
-    private Integer maxPremiumSongs;
-    private Boolean unlimitedPremiumSongs;
-    
+
+    // --- CÁC TRƯỜNG GÂY LỖI ĐÃ ĐƯỢC XOÁ BỎ ---
+    // private Integer maxPremiumSongs;
+    // private Boolean unlimitedPremiumSongs;
+
     // Status indicators
     private Boolean isActive;
     private Boolean isExpiring; // Within 7 days of expiration
     private Long daysRemaining;
-    
+
     // Transaction history
     private List<Long> transactionIds;
 }

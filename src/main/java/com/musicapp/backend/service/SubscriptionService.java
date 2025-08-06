@@ -1,8 +1,8 @@
 package com.musicapp.backend.service;
 
+import com.musicapp.backend.dto.PagedResponse;
 import com.musicapp.backend.dto.subscription.CreateSubscriptionRequest;
 import com.musicapp.backend.dto.subscription.SubscriptionDto;
-import com.musicapp.backend.dto.PagedResponse;
 import com.musicapp.backend.entity.User;
 import com.musicapp.backend.entity.UserSubscription;
 import com.musicapp.backend.exception.BadRequestException;
@@ -16,6 +16,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -28,360 +29,130 @@ public class SubscriptionService {
 
     private final UserSubscriptionRepository subscriptionRepository;
     private final SubscriptionMapper subscriptionMapper;
-    private final TransactionService transactionService;
+    private final TransactionService transactionService; // Cần để ghi lại giao dịch
     private final UserRepository userRepository;
 
+    /**
+     * Tạo một gói đăng ký mới cho người dùng dựa trên packageId.
+     * Logic đã được viết lại hoàn toàn để phù hợp với backlog mới.
+     */
     @Transactional
-    public SubscriptionDto createSubscription(CreateSubscriptionRequest request, User user) {
-        // Validate subscription type
-        UserSubscription.SubscriptionType subscriptionType;
-        try {
-            subscriptionType = UserSubscription.SubscriptionType.valueOf(request.getSubscriptionType().toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new BadRequestException("Invalid subscription type: " + request.getSubscriptionType());
+    public SubscriptionDto createSubscription(CreateSubscriptionRequest request, String username) {
+        User user = userRepository.findByEmail(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
+
+        // Kiểm tra xem người dùng đã có gói active chưa
+        if (hasActivePremiumSubscription(user.getId())) {
+            throw new BadRequestException("User already has an active subscription.");
         }
 
-        // Check if user already has an active subscription
-        Optional<UserSubscription> activeSubscription = getActiveSubscription(user.getId());
-        if (activeSubscription.isPresent()) {
-            throw new BadRequestException("User already has an active subscription");
+        int durationInDays;
+        BigDecimal price;
+        String packageName;
+
+        // Xác định thông tin gói dựa trên packageId
+        if ("monthly_premium".equals(request.getPackageId())) {
+            durationInDays = 30;
+            price = new BigDecimal("50000.00"); // Ví dụ giá gói tháng
+            packageName = "Gói Premium 1 Tháng";
+        } else if ("yearly_premium".equals(request.getPackageId())) {
+            durationInDays = 365;
+            price = new BigDecimal("500000.00"); // Ví dụ giá gói năm
+            packageName = "Gói Premium 1 Năm";
+        } else {
+            throw new BadRequestException("Invalid package identifier: " + request.getPackageId());
         }
 
-        // Calculate dates and price
         LocalDateTime startDate = LocalDateTime.now();
-        LocalDateTime endDate = startDate.plusMonths(request.getDurationMonths());
+        LocalDateTime endDate = startDate.plusDays(durationInDays);
 
         UserSubscription subscription = UserSubscription.builder()
                 .user(user)
-                .subscriptionType(subscriptionType)
                 .startDate(startDate)
                 .endDate(endDate)
-                .price(subscriptionType.getMonthlyPrice().multiply(new java.math.BigDecimal(request.getDurationMonths())))
-                .autoRenewal(request.getAutoRenewal())
+                .price(price) // Lưu lại giá tại thời điểm mua
+                .status(UserSubscription.SubscriptionStatus.ACTIVE)
+                .autoRenewal(false) // Mặc định không tự động gia hạn
                 .build();
 
         UserSubscription savedSubscription = subscriptionRepository.save(subscription);
 
-        // Create payment transaction (simplified - in real app would integrate with payment gateway)
-        if (subscription.getPrice().compareTo(java.math.BigDecimal.ZERO) > 0) {
-            // This would create a transaction and handle payment
-            // For now, we'll assume payment is successful
-        }
+        // Giả sử thanh toán thành công và tạo một bản ghi giao dịch.
+        // Chúng ta có thể cần tạo phương thức này trong TransactionService.
+        transactionService.createTransactionForSubscription(user, savedSubscription, packageName, "MOMO");
 
         return subscriptionMapper.toDto(savedSubscription);
     }
 
-    public Optional<SubscriptionDto> getUserActiveSubscription(Long userId) {
-        Optional<UserSubscription> subscription = getActiveSubscription(userId);
-        return subscription.map(subscriptionMapper::toDto);
-    }
-
-    public Page<SubscriptionDto> getUserSubscriptions(Long userId, Pageable pageable) {
-        return subscriptionRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable)
-                .map(subscriptionMapper::toDto);
-    }
-
-    public SubscriptionDto getSubscriptionById(Long id, User user) {
-        UserSubscription subscription = subscriptionRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Subscription not found with id: " + id));
-
-        // Check permission
-        if (!subscription.getUser().getId().equals(user.getId()) && !hasAdminRole(user)) {
-            throw new BadRequestException("You don't have permission to access this subscription");
-        }
-
-        return subscriptionMapper.toDto(subscription);
-    }
-
-    @Transactional
-    public SubscriptionDto cancelSubscription(Long id, User user) {
-        UserSubscription subscription = subscriptionRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Subscription not found with id: " + id));
-
-        // Check permission
-        if (!subscription.getUser().getId().equals(user.getId()) && !hasAdminRole(user)) {
-            throw new BadRequestException("You don't have permission to cancel this subscription");
-        }
-
-        if (subscription.getStatus() != UserSubscription.SubscriptionStatus.ACTIVE) {
-            throw new BadRequestException("Can only cancel active subscriptions");
-        }
-
-        subscription.setStatus(UserSubscription.SubscriptionStatus.CANCELLED);
-        subscription.setCancelledAt(LocalDateTime.now());
-        subscription.setAutoRenewal(false);
-
-        UserSubscription updatedSubscription = subscriptionRepository.save(subscription);
-        return subscriptionMapper.toDto(updatedSubscription);
-    }
-
-    @Transactional
-    public SubscriptionDto updateAutoRenewal(Long id, Boolean autoRenewal, User user) {
-        UserSubscription subscription = subscriptionRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Subscription not found with id: " + id));
-
-        // Check permission
-        if (!subscription.getUser().getId().equals(user.getId())) {
-            throw new BadRequestException("You don't have permission to modify this subscription");
-        }
-
-        if (subscription.getStatus() != UserSubscription.SubscriptionStatus.ACTIVE) {
-            throw new BadRequestException("Can only modify active subscriptions");
-        }
-
-        subscription.setAutoRenewal(autoRenewal);
-        UserSubscription updatedSubscription = subscriptionRepository.save(subscription);
-        return subscriptionMapper.toDto(updatedSubscription);
-    }
-
-    // Premium access checks
+    /**
+     * Kiểm tra xem người dùng có gói Premium đang hoạt động hay không.
+     * Logic đã được đơn giản hóa.
+     */
     public boolean hasActivePremiumSubscription(Long userId) {
-        return subscriptionRepository.hasActivePremiumSubscription(userId, LocalDateTime.now());
+        return subscriptionRepository.findActiveSubscription(userId, LocalDateTime.now()).isPresent();
     }
 
-    public boolean canAccessPremiumSong(Long userId, Long songId) {
-        // In the new model, access to premium songs is solely determined by having an active subscription.
-        // The concept of purchasing individual songs has been removed.
-        return hasActivePremiumSubscription(userId);
-    }
-
-    // Admin methods
-    public Page<SubscriptionDto> getAllSubscriptions(Pageable pageable) {
-        return subscriptionRepository.findAll(pageable)
-                .map(subscriptionMapper::toDto);
-    }
-
-    public Page<SubscriptionDto> getSubscriptionsByType(String type, Pageable pageable) {
-        UserSubscription.SubscriptionType subscriptionType;
-        try {
-            subscriptionType = UserSubscription.SubscriptionType.valueOf(type.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new BadRequestException("Invalid subscription type: " + type);
-        }
-
-        return subscriptionRepository.findBySubscriptionTypeOrderByCreatedAtDesc(subscriptionType, pageable)
-                .map(subscriptionMapper::toDto);
-    }
-
-    public Page<SubscriptionDto> getSubscriptionsByStatus(String status, Pageable pageable) {
-        UserSubscription.SubscriptionStatus subscriptionStatus;
-        try {
-            subscriptionStatus = UserSubscription.SubscriptionStatus.valueOf(status.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new BadRequestException("Invalid subscription status: " + status);
-        }
-
-        return subscriptionRepository.findByStatusOrderByCreatedAtDesc(subscriptionStatus, pageable)
-                .map(subscriptionMapper::toDto);
-    }
-
-    // Scheduled tasks (would be called by scheduled jobs)
-    @Transactional
-    public void processExpiredSubscriptions() {
-        List<UserSubscription> expiredSubscriptions =
-                subscriptionRepository.findExpiredActiveSubscriptions(LocalDateTime.now());
-
-        for (UserSubscription subscription : expiredSubscriptions) {
-            subscription.setStatus(UserSubscription.SubscriptionStatus.EXPIRED);
-            subscriptionRepository.save(subscription);
-        }
-    }
-
-    @Transactional
-    public void processAutoRenewals() {
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime renewalDate = now.plusDays(1); // Renew 1 day before expiration
-
-        List<UserSubscription> subscriptionsToRenew =
-                subscriptionRepository.findSubscriptionsForAutoRenewal(now, renewalDate);
-
-        for (UserSubscription subscription : subscriptionsToRenew) {
-            try {
-                // Create new subscription
-                CreateSubscriptionRequest renewalRequest = CreateSubscriptionRequest.builder()
-                        .subscriptionType(subscription.getSubscriptionType().name())
-                        .autoRenewal(subscription.getAutoRenewal())
-                        .durationMonths(1)
-                        .build();
-
-                createSubscription(renewalRequest, subscription.getUser());
-
-                // Mark current subscription as completed
-                subscription.setStatus(UserSubscription.SubscriptionStatus.EXPIRED);
-                subscriptionRepository.save(subscription);
-
-            } catch (Exception e) {
-                // Log error and continue with other renewals
-                // In production, you'd want proper error handling and user notification
-            }
-        }
-    }
-
-    @Transactional
-    public void processAutoRenewal(UserSubscription subscription) {
-        if (!subscription.getAutoRenewal() || subscription.getStatus() != UserSubscription.SubscriptionStatus.ACTIVE) {
-            return;
-        }
-
-        try {
-            // Create new subscription period
-            LocalDateTime newStartDate = subscription.getEndDate();
-            LocalDateTime newEndDate = newStartDate.plusMonths(1); // Default to 1 month renewal
-
-            UserSubscription renewedSubscription = UserSubscription.builder()
-                    .user(subscription.getUser())
-                    .subscriptionType(subscription.getSubscriptionType())
-                    .startDate(newStartDate)
-                    .endDate(newEndDate)
-                    .price(subscription.getSubscriptionType().getMonthlyPrice())
-                    .autoRenewal(subscription.getAutoRenewal())
-                    .build();
-
-            subscriptionRepository.save(renewedSubscription);
-
-            // Mark old subscription as expired
-            subscription.setStatus(UserSubscription.SubscriptionStatus.EXPIRED);
-            subscriptionRepository.save(subscription);
-
-            // Create payment transaction for renewal
-            // In real app, this would charge the user's payment method
-
-        } catch (Exception e) {
-            // Log error and disable auto-renewal
-            subscription.setAutoRenewal(false);
-            subscriptionRepository.save(subscription);
-            throw e;
-        }
-    }
-
-    // Statistics
-    public long getActiveSubscriptionCount() {
-        return subscriptionRepository.countActiveSubscriptions(LocalDateTime.now());
-    }
-
-    public long getPremiumUserCount() {
-        return subscriptionRepository.countPremiumUsers(LocalDateTime.now());
-    }
-
-    public long getSubscriptionCountByType(String type) {
-        UserSubscription.SubscriptionType subscriptionType;
-        try {
-            subscriptionType = UserSubscription.SubscriptionType.valueOf(type.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new BadRequestException("Invalid subscription type: " + type);
-        }
-
-        return subscriptionRepository.countBySubscriptionType(subscriptionType);
-    }
-
-    private Optional<UserSubscription> getActiveSubscription(Long userId) {
-        return subscriptionRepository.findActiveSubscription(userId, LocalDateTime.now());
-    }
-
-    private boolean hasAdminRole(User user) {
-        return user.getRoles().stream()
-                .anyMatch(role -> role.getName().equals("ROLE_ADMIN"));
-    }
-
-    // Service methods that controller expects but are missing
-    public SubscriptionDto createSubscription(CreateSubscriptionRequest request, String username) {
-        User user = userRepository.findByEmail(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
-        return createSubscription(request, user);
-    }
-
+    /**
+     * Lấy gói đăng ký đang hoạt động của người dùng.
+     */
     public SubscriptionDto getUserActiveSubscription(String username) {
         User user = userRepository.findByEmail(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
-        Optional<UserSubscription> subscription = getActiveSubscription(user.getId());
+
+        Optional<UserSubscription> subscription = subscriptionRepository.findActiveSubscription(user.getId(), LocalDateTime.now());
         return subscription.map(subscriptionMapper::toDto).orElse(null);
     }
 
+    /**
+     * Hủy một gói đăng ký đang hoạt động.
+     */
+    @Transactional
     public SubscriptionDto cancelSubscription(String username) {
         User user = userRepository.findByEmail(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
 
-        Optional<UserSubscription> activeSubscription = getActiveSubscription(user.getId());
-        if (activeSubscription.isEmpty()) {
-            throw new BadRequestException("No active subscription found to cancel");
-        }
+        UserSubscription activeSubscription = subscriptionRepository.findActiveSubscription(user.getId(), LocalDateTime.now())
+                .orElseThrow(() -> new BadRequestException("No active subscription found to cancel"));
 
-        return cancelSubscription(activeSubscription.get().getId(), user);
+        activeSubscription.setStatus(UserSubscription.SubscriptionStatus.CANCELLED);
+        activeSubscription.setCancelledAt(LocalDateTime.now());
+        activeSubscription.setAutoRenewal(false);
+
+        UserSubscription updatedSubscription = subscriptionRepository.save(activeSubscription);
+        return subscriptionMapper.toDto(updatedSubscription);
     }
 
-    public SubscriptionDto reactivateSubscription(String username) {
-        User user = userRepository.findByEmail(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
-
-        // Find the most recently cancelled subscription
-        List<UserSubscription> cancelledSubscriptions = subscriptionRepository
-                .findByUserIdAndStatusOrderByCreatedAtDesc(user.getId(), UserSubscription.SubscriptionStatus.CANCELLED);
-
-        if (cancelledSubscriptions.isEmpty()) {
-            throw new BadRequestException("No cancelled subscription found to reactivate");
-        }
-
-        UserSubscription subscription = cancelledSubscriptions.get(0);
-        subscription.setStatus(UserSubscription.SubscriptionStatus.ACTIVE);
-        subscription.setCancelledAt(null);
-        subscription.setEndDate(LocalDateTime.now().plusMonths(1)); // Extend for 1 month
-
-        UserSubscription reactivatedSubscription = subscriptionRepository.save(subscription);
-        return subscriptionMapper.toDto(reactivatedSubscription);
-    }
-
-    public boolean hasSubscriptionAccess(String username, UserSubscription.SubscriptionType requiredType) {
-        User user = userRepository.findByEmail(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
-
-        Optional<UserSubscription> activeSubscription = getActiveSubscription(user.getId());
-
-        if (activeSubscription.isEmpty()) {
-            return false; // No active subscription
-        }
-
-        UserSubscription subscription = activeSubscription.get();
-        // Check if current subscription tier is equal or higher than required
-        return subscription.getSubscriptionType().ordinal() >= requiredType.ordinal();
-    }
-
-    public Object getSubscriptionTiers() {
+    /**
+     * Lấy các gói có sẵn để hiển thị cho người dùng.
+     * Phương thức này thay thế cho getSubscriptionTiers() cũ.
+     */
+    public Object getAvailablePackages() {
         return Map.of(
-                "BASIC", Map.of(
-                        "name", "Basic",
-                        "price", UserSubscription.SubscriptionType.BASIC.getMonthlyPrice(),
-                        "features", List.of("Free songs", "Basic audio quality")
+                "monthly_premium", Map.of(
+                        "name", "Gói Premium 1 Tháng",
+                        "price", new BigDecimal("50000.00"),
+                        "durationDays", 30,
+                        "features", List.of("Nghe nhạc không quảng cáo", "Chất lượng cao", "Truy cập toàn bộ bài hát")
                 ),
-                "PREMIUM", Map.of(
-                        "name", "Premium",
-                        "price", UserSubscription.SubscriptionType.PREMIUM.getMonthlyPrice(),
-                        "features", List.of("Premium songs", "High audio quality", "No ads")
-                ),
-                "VIP", Map.of(
-                        "name", "VIP",
-                        "price", UserSubscription.SubscriptionType.VIP.getMonthlyPrice(),
-                        "features", List.of("All premium features", "Exclusive content", "Early access")
+                "yearly_premium", Map.of(
+                        "name", "Gói Premium 1 Năm",
+                        "price", new BigDecimal("500000.00"),
+                        "durationDays", 365,
+                        "features", List.of("Tất cả quyền lợi của gói Tháng", "Tiết kiệm hơn 15%")
                 )
         );
     }
 
-    public PagedResponse<SubscriptionDto> getAllSubscriptions(
-            UserSubscription.SubscriptionType tier, Boolean isActive, Pageable pageable) {
+    // Các phương thức dành cho Admin hoặc Scheduler có thể được giữ lại và điều chỉnh nếu cần.
+    // Ví dụ: processExpiredSubscriptions() trong SubscriptionSchedulerService vẫn hoạt động tốt.
 
+    /**
+     * [ADMIN] Lấy danh sách tất cả các gói đăng ký trong hệ thống, có phân trang.
+     * Có thể lọc theo trạng thái active.
+     */
+    public PagedResponse<SubscriptionDto> getAllSubscriptions(Pageable pageable, Boolean isActive) {
         Page<UserSubscription> subscriptions;
-
-        if (tier != null && isActive != null) {
-            // Filter by both tier and active status
-            if (isActive) {
-                subscriptions = subscriptionRepository.findBySubscriptionTypeAndStatusAndEndDateAfter(
-                        tier, UserSubscription.SubscriptionStatus.ACTIVE, LocalDateTime.now(), pageable);
-            } else {
-                subscriptions = subscriptionRepository.findBySubscriptionTypeAndStatusNot(
-                        tier, UserSubscription.SubscriptionStatus.ACTIVE, pageable);
-            }
-        } else if (tier != null) {
-            subscriptions = subscriptionRepository.findBySubscriptionTypeOrderByCreatedAtDesc(tier, pageable);
-        } else if (isActive != null) {
+        if (isActive != null) {
             if (isActive) {
                 subscriptions = subscriptionRepository.findByStatusAndEndDateAfter(
                         UserSubscription.SubscriptionStatus.ACTIVE, LocalDateTime.now(), pageable);
@@ -392,45 +163,52 @@ public class SubscriptionService {
         } else {
             subscriptions = subscriptionRepository.findAll(pageable);
         }
-
         return createPagedResponse(subscriptions.map(subscriptionMapper::toDto));
     }
 
+    /**
+     * [ADMIN] Lấy lịch sử đăng ký của một người dùng cụ thể.
+     */
     public PagedResponse<SubscriptionDto> getUserSubscriptionHistory(Long userId, Pageable pageable) {
+        if (!userRepository.existsById(userId)) {
+            throw new ResourceNotFoundException("User not found with id: " + userId);
+        }
         Page<UserSubscription> subscriptions = subscriptionRepository
                 .findByUserIdOrderByCreatedAtDesc(userId, pageable);
         return createPagedResponse(subscriptions.map(subscriptionMapper::toDto));
     }
 
+    /**
+     * [ADMIN] Lấy các số liệu thống kê về các gói đăng ký.
+     * Đã cập nhật để không còn thống kê theo cấp độ.
+     */
     public Object getSubscriptionStats() {
+        long totalSubscriptions = subscriptionRepository.count();
+        long activeSubscriptions = subscriptionRepository.countActiveSubscriptions(LocalDateTime.now());
+
         return Map.of(
-                "totalSubscriptions", subscriptionRepository.count(),
-                "activeSubscriptions", getActiveSubscriptionCount(),
-                "premiumUsers", getPremiumUserCount(),
-                "basicSubscriptions", getSubscriptionCountByType("BASIC"),
-                "premiumSubscriptions", getSubscriptionCountByType("PREMIUM"),
-                "vipSubscriptions", getSubscriptionCountByType("VIP")
+                "totalSubscriptions", totalSubscriptions,
+                "activeSubscriptions", activeSubscriptions,
+                "expiredOrCancelledSubscriptions", totalSubscriptions - activeSubscriptions
         );
     }
 
-    public Object getSubscriptionRevenue(String startDate, String endDate) {
-        // This would typically calculate revenue from transactions
-        // For now, return a mock response
+    /**
+     * [ADMIN] Lấy doanh thu từ các giao dịch trong một khoảng thời gian.
+     */
+    public Object getSubscriptionRevenue(LocalDateTime startDate, LocalDateTime endDate) {
+        // Logic này cần được triển khai trong TransactionRepository để tính tổng doanh thu
+        // Ví dụ:
+        // BigDecimal totalRevenue = transactionRepository.sumRevenueBetweenDates(startDate, endDate);
+
+        // Trả về dữ liệu giả để minh họa
         return Map.of(
-                "totalRevenue", subscriptionRepository.count() * 9.99, // Mock calculation
-                "period", Map.of("start", startDate, "end", endDate),
-                "breakdown", Map.of(
-                        "PREMIUM", getSubscriptionCountByType("PREMIUM") * 9.99,
-                        "VIP", getSubscriptionCountByType("VIP") * 19.99
-                )
+                "totalRevenue", "Chưa được triển khai",
+                "period", Map.of("start", startDate, "end", endDate)
         );
     }
 
-    public void processSubscriptionRenewals() {
-        processAutoRenewals();
-    }
-
-    // Helper method to create paged response
+    // Helper method để tạo PagedResponse, bạn có thể đặt nó ở cuối class
     private <T> PagedResponse<T> createPagedResponse(Page<T> page) {
         return PagedResponse.of(page.getContent(), page);
     }

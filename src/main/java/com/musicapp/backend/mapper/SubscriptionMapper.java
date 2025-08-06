@@ -12,21 +12,22 @@ import java.util.stream.Collectors;
 @Component
 @RequiredArgsConstructor
 public class SubscriptionMapper {
-    
+
     public SubscriptionDto toDto(UserSubscription subscription) {
         if (subscription == null) return null;
-        
+
         LocalDateTime now = LocalDateTime.now();
         boolean isActive = subscription.isActive();
         boolean isExpiring = isActive && subscription.getEndDate().isBefore(now.plusDays(7));
         long daysRemaining = isActive ? ChronoUnit.DAYS.between(now, subscription.getEndDate()) : 0;
-        
-        int maxPremiumSongs = subscription.getSubscriptionType().getMaxPremiumSongs();
-        boolean unlimitedPremiumSongs = maxPremiumSongs == -1;
-        
+
+        // --- CÁC DÒNG GÂY LỖI ĐÃ ĐƯỢC XOÁ BỎ ---
+        // int maxPremiumSongs = subscription.getSubscriptionType().getMaxPremiumSongs();
+        // boolean unlimitedPremiumSongs = maxPremiumSongs == -1;
+
         return SubscriptionDto.builder()
                 .id(subscription.getId())
-                .subscriptionType(subscription.getSubscriptionType().name())
+                // .subscriptionType(subscription.getSubscriptionType().name()) // XOÁ BỎ
                 .startDate(subscription.getStartDate())
                 .endDate(subscription.getEndDate())
                 .price(subscription.getPrice())
@@ -37,28 +38,27 @@ public class SubscriptionMapper {
                 .userId(subscription.getUser().getId())
                 .userName(subscription.getUser().getDisplayName())
                 .userEmail(subscription.getUser().getEmail())
-                .maxPremiumSongs(unlimitedPremiumSongs ? null : maxPremiumSongs)
-                .unlimitedPremiumSongs(unlimitedPremiumSongs)
+                // .maxPremiumSongs(unlimitedPremiumSongs ? null : maxPremiumSongs) // XOÁ BỎ
+                // .unlimitedPremiumSongs(unlimitedPremiumSongs) // XOÁ BỎ
                 .isActive(isActive)
                 .isExpiring(isExpiring)
                 .daysRemaining(daysRemaining)
                 .transactionIds(subscription.getTransactions() != null ?
-                    subscription.getTransactions().stream()
-                        .map(t -> t.getId())
-                        .collect(Collectors.toList()) : null)
+                        subscription.getTransactions().stream()
+                                .map(t -> t.getId())
+                                .collect(Collectors.toList()) : null)
                 .build();
     }
-    
+
     public SubscriptionDto toDtoBasic(UserSubscription subscription) {
         if (subscription == null) return null;
-        
+
         LocalDateTime now = LocalDateTime.now();
         boolean isActive = subscription.isActive();
         long daysRemaining = isActive ? ChronoUnit.DAYS.between(now, subscription.getEndDate()) : 0;
-        
         return SubscriptionDto.builder()
                 .id(subscription.getId())
-                .subscriptionType(subscription.getSubscriptionType().name())
+                // .subscriptionType(subscription.getSubscriptionType().name()) // XOÁ BỎ
                 .endDate(subscription.getEndDate())
                 .status(subscription.getStatus().name())
                 .isActive(isActive)
