@@ -1,6 +1,7 @@
 package com.musicapp.backend.controller;
 
 import com.musicapp.backend.dto.BaseResponse;
+import com.musicapp.backend.dto.user.ChangePasswordRequest;
 import com.musicapp.backend.dto.user.UpdateProfileRequest;
 import com.musicapp.backend.dto.user.UserProfileDto;
 import com.musicapp.backend.entity.User;
@@ -44,5 +45,16 @@ public class UserController {
     ) {
         UserProfileDto updatedUserProfile = userService.updateCurrentUserProfile(currentUser, request);
         return ResponseEntity.ok(BaseResponse.success("Cập nhật thông tin thành công.", updatedUserProfile));
+    }
+    /**
+     * API để người dùng thay đổi mật khẩu.
+     */
+    @PatchMapping("/me/password")
+    public ResponseEntity<BaseResponse<Void>> changePassword(
+            @AuthenticationPrincipal User currentUser,
+            @Valid @RequestBody ChangePasswordRequest request
+    ) {
+        userService.changePassword(currentUser, request);
+        return ResponseEntity.ok(BaseResponse.success("Đổi mật khẩu thành công. Vui lòng đăng nhập lại.", null));
     }
 }

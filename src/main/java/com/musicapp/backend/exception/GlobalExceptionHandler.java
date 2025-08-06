@@ -52,4 +52,15 @@ public class GlobalExceptionHandler {
         // log.error("An unexpected error occurred: ", ex);
         return BaseResponse.error("Đã có lỗi không mong muốn xảy ra: " + ex.getMessage());
     }
+    /**
+     * Xử lý các lỗi yêu cầu không hợp lệ chung (ví dụ: mật khẩu không khớp).
+     * Trả về status 400 Bad Request.
+     */
+    @ExceptionHandler(BadRequestException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST) // Status 400
+    public BaseResponse<Void> handleBadRequestException(BadRequestException ex) {
+        return BaseResponse.error(ex.getMessage());
+    }
+
+
 }

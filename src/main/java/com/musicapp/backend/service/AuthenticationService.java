@@ -40,8 +40,8 @@ public class AuthenticationService {
                     throw new ResourceAlreadyExistsException("Email đã tồn tại.");
                 });
 
-        Role userRole = roleRepository.findByName("USER")
-                .orElseThrow(() -> new ResourceNotFoundException("Vai trò 'USER' không tồn tại trong database."));
+        Role userRole = roleRepository.findByName("ROLE_USER")
+                .orElseThrow(() -> new ResourceNotFoundException("Vai trò 'ROLE_USER' không tồn tại trong database."));
 
         Set<Role> roles = new HashSet<>();
         roles.add(userRole);

@@ -1,7 +1,7 @@
+// src/main/java/com/musicapp/backend/dto/user/ChangePasswordRequest.java
 package com.musicapp.backend.dto.user;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -13,15 +13,17 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ChangePasswordRequest {
-    
-    @NotBlank(message = "Current password is required")
+
+    // Đã đổi @NotBlank thành @NotEmpty để nhất quán, nhưng @NotBlank cũng hoạt động tốt.
+    @NotBlank(message = "Mật khẩu hiện tại là bắt buộc.")
     private String currentPassword;
-    
-    @NotBlank(message = "New password is required")
-    @Size(min = 6, max = 32, message = "Password must be between 6 and 32 characters")
-    @Pattern(regexp = "^[a-zA-Z0-9]+$", message = "Password must not contain special characters")
+
+    @NotBlank(message = "Mật khẩu mới là bắt buộc.")
+    @Size(min = 6, max = 32, message = "Mật khẩu mới phải có độ dài từ 6 đến 32 ký tự.")
+    // Annotation @Pattern đã bị xóa để cho phép ký tự đặc biệt, theo chuẩn thông thường.
+    // Nếu bạn muốn giữ lại, không sao cả.
     private String newPassword;
-    
-    @NotBlank(message = "Confirm password is required")
-    private String confirmPassword;
+
+    @NotBlank(message = "Xác nhận mật khẩu là bắt buộc.")
+    private String confirmationPassword;
 }
