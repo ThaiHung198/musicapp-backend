@@ -15,6 +15,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.HashSet;
 import java.util.List;
@@ -266,34 +267,6 @@ public class SongService {
     }
 
     /**
-     * Lấy danh sách các bài hát đã được duyệt của một creator.
-     *
-     * @param username Tên đăng nhập (email) của creator.
-     * @param pageable Thông tin phân trang.
-     * @return PagedResponse chứa danh sách SongDto.
-     */
-    public PagedResponse<SongDto> getMyApprovedSongs(String username, Pageable pageable) {
-        // 1. Tìm người dùng hiện tại
-        User creator = userRepository.findByEmail(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
-
-        // 2. Gọi repository để lấy trang các bài hát đã được duyệt của người dùng này
-        Page<Song> songPage = songRepository.findByCreatorIdAndStatusOrderByCreatedAtDesc(
-                creator.getId(),
-                Song.SongStatus.APPROVED, // Chỉ lấy các bài hát đã được duyệt
-                pageable
-        );
-
-        // 3. Chuyển đổi Page<Song> thành Page<SongDto>
-        // creator được truyền vào mapper để kiểm tra isLikedByCurrentUser
-        Page<SongDto> dtoPage = songPage.map(song -> songMapper.toDto(song, creator));
-
-        // 4. Tạo và trả về đối tượng PagedResponse
-        return PagedResponse.of(dtoPage.getContent(), dtoPage);
-    }
-
-
-    /**
      * Lấy thông tin chi tiết một bài hát đã được duyệt của creator.
      * Chỉ người tạo ra bài hát đó hoặc Admin mới có quyền xem.
      */
@@ -314,5 +287,37 @@ public class SongService {
         }
 
         return songMapper.toDto(song, currentUser);
+    }
+
+    public PagedResponse<SongDto> getMyApprovedSongs(String username, String keyword, Pageable pageable) {
+        // 1. Tìm người dùng hiện tại
+        User creator = userRepository.findByEmail(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
+
+        Page<Song> songPage;
+
+        // 2. Kiểm tra xem có từ khóa tìm kiếm không
+        if (StringUtils.hasText(keyword)) {
+            // Nếu có từ khóa, gọi phương thức tìm kiếm
+            songPage = songRepository.searchByTitleForCreatorAndStatus(
+                    keyword,
+                    creator.getId(),
+                    Song.SongStatus.APPROVED,
+                    pageable
+            );
+        } else {
+            // Nếu không có từ khóa, gọi phương thức lấy tất cả như cũ
+            songPage = songRepository.findByCreatorIdAndStatusOrderByCreatedAtDesc(
+                    creator.getId(),
+                    Song.SongStatus.APPROVED,
+                    pageable
+            );
+        }
+
+        // 3. Chuyển đổi Page<Song> thành Page<SongDto>
+        Page<SongDto> dtoPage = songPage.map(song -> songMapper.toDto(song, creator));
+
+        // 4. Tạo và trả về đối tượng PagedResponse
+        return PagedResponse.of(dtoPage.getContent(), dtoPage);
     }
 }

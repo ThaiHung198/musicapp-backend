@@ -185,12 +185,13 @@ public class SongController {
     public ResponseEntity<PagedResponse<SongDto>> getMyApprovedSongs(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String name, // Thêm tham số tìm kiếm
             Authentication authentication) {
 
         String username = authentication.getName();
         Pageable pageable = PageRequest.of(page, size);
 
-        PagedResponse<SongDto> response = songService.getMyApprovedSongs(username, pageable);
+        PagedResponse<SongDto> response = songService.getMyApprovedSongs(username, name, pageable);
 
         return ResponseEntity.ok(response);
     }

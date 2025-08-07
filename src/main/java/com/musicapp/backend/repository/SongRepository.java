@@ -75,4 +75,16 @@ public interface SongRepository extends JpaRepository<Song, Long> {
     Optional<Song> findByIdAndStatusWithDetails(@Param("id") Long id, @Param("status") Song.SongStatus status);
 
     Page<Song> findByCreatorIdAndStatusOrderByCreatedAtDesc(Long creatorId, Song.SongStatus status, Pageable pageable);
+
+    @Query("SELECT s FROM Song s " +
+            "WHERE s.creator.id = :creatorId " +
+            "AND s.status = :status " +
+            "AND LOWER(s.title) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+            "ORDER BY s.createdAt DESC")
+    Page<Song> searchByTitleForCreatorAndStatus(
+            @Param("keyword") String keyword,
+            @Param("creatorId") Long creatorId,
+            @Param("status") Song.SongStatus status,
+            Pageable pageable
+    );
 }
