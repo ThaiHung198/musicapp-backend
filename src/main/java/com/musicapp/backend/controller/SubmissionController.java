@@ -58,12 +58,13 @@ public class SubmissionController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('CREATOR') or hasRole('ADMIN')")
+    @PreAuthorize("hasRole('CREATOR')") // Chỉ CREATOR có thể gọi
     public ResponseEntity<BaseResponse<SubmissionDto>> updateSubmission(
             @PathVariable Long id,
-            @Valid @RequestBody CreateSubmissionRequest request,
+            @Valid @RequestBody CreateSubmissionRequest request, // Dùng lại CreateSubmissionRequest là hợp lý
             Authentication authentication) {
         String username = authentication.getName();
+        // Logic sẽ được gọi trong service
         SubmissionDto submission = submissionService.updateSubmission(id, request, username);
         return ResponseEntity.ok(BaseResponse.success("Submission updated successfully", submission));
     }

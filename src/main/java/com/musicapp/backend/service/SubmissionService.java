@@ -18,6 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.musicapp.backend.dto.submission.CreateSubmissionRequest.NewSingerInfo;
 import com.musicapp.backend.entity.Singer.SingerStatus;
 import com.musicapp.backend.exception.ResourceAlreadyExistsException;
+import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -315,19 +317,113 @@ public class SubmissionService {
         SongSubmission submission = submissionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Submission not found with id: " + id));
 
-        if (!submission.getCreator().getId().equals(user.getId()) && !hasAdminRole(user)) {
+        // ... kiểm tra quyền và trạng thái (không đổi) ...
+        if (!submission.getCreator().getId().equals(user.getId())) {
             throw new UnauthorizedException("You don't have permission to update this submission");
         }
-
         if (submission.getStatus() != SongSubmission.SubmissionStatus.PENDING) {
-            throw new BadRequestException("Can only update pending submissions");
+            throw new BadRequestException("Can only update submissions that are in PENDING status.");
         }
 
+
+        // ... cập nhật các trường cơ bản (không đổi) ...
         submission.setTitle(request.getTitle());
         submission.setDescription(request.getDescription());
         submission.setFilePath(request.getFilePath());
         submission.setThumbnailPath(request.getThumbnailPath());
         submission.setIsPremium(request.getIsPremium());
+
+        // ... xóa các liên kết cũ (không đổi) ...
+        submissionSingersRepository.deleteBySubmissionId(id);
+        submissionTagsRepository.deleteBySubmissionId(id);
+        submission.getSubmissionSingers().clear();
+        submission.getSubmissionTags().clear();
+
+        // ======================== LOGIC MỚI SỬ DỤNG ID ========================
+
+        Set<Singer> allSingersForSubmission = new HashSet<>();
+
+        if (!CollectionUtils.isEmpty(request.getNewSingers())) {
+            for (NewSingerInfo singerInfo : request.getNewSingers()) {
+                Singer singerToProcess;
+
+                if (singerInfo.getId() != null) {
+                    // === TRƯỜNG HỢP 1: CẬP NHẬT ca sĩ PENDING đã có ID ===
+                    singerToProcess = singerRepository.findById(singerInfo.getId())
+                            .orElseThrow(() -> new ResourceNotFoundException("Pending singer with id " + singerInfo.getId() + " not found."));
+
+                    // Kiểm tra quyền sở hữu và trạng thái
+                    if (singerToProcess.getStatus() != SingerStatus.PENDING ||
+                            singerToProcess.getCreator() == null ||
+                            !singerToProcess.getCreator().getId().equals(user.getId())) {
+                        throw new UnauthorizedException("You do not have permission to modify singer with id " + singerInfo.getId());
+                    }
+
+                    // Kiểm tra email mới có bị trùng với người khác không
+                    singerRepository.findByEmail(singerInfo.getEmail()).ifPresent(otherSinger -> {
+                        if (!otherSinger.getId().equals(singerInfo.getId())) {
+                            throw new ResourceAlreadyExistsException("Email '" + singerInfo.getEmail() + "' is already used by another singer.");
+                        }
+                    });
+
+                    // Cập nhật thông tin
+                    singerToProcess.setName(singerInfo.getName());
+                    singerToProcess.setEmail(singerInfo.getEmail()); // Bây giờ có thể cập nhật email
+                    singerToProcess.setAvatarPath(singerInfo.getAvatarPath());
+
+                } else {
+                    // === TRƯỜNG HỢP 2: TẠO MỚI ca sĩ (không có ID) ===
+                    if (singerRepository.existsByEmail(singerInfo.getEmail())) {
+                        throw new ResourceAlreadyExistsException("A singer with email '" + singerInfo.getEmail() + "' already exists.");
+                    }
+                    singerToProcess = Singer.builder()
+                            .name(singerInfo.getName())
+                            .email(singerInfo.getEmail())
+                            .avatarPath(singerInfo.getAvatarPath())
+                            .creator(user)
+                            .status(SingerStatus.PENDING)
+                            .build();
+                }
+
+                allSingersForSubmission.add(singerRepository.save(singerToProcess));
+            }
+        }
+
+        // ... xử lý existingSingerIds và tags (không đổi) ...
+        if (!CollectionUtils.isEmpty(request.getExistingSingerIds())) {
+            // ... logic cũ ...
+            List<Singer> existingSingers = singerRepository.findAllById(request.getExistingSingerIds());
+            for (Singer singer : existingSingers) {
+//                boolean isApproved = singer.getStatus() == SingerStatus.APPROVED;
+//                boolean isOwnPending = singer.getStatus() == SingerStatus.PENDING &&
+//                        singer.getCreator() != null &&
+//                        singer.getCreator().getId().equals(user.getId());
+                if (singer.getStatus() != SingerStatus.APPROVED) {
+                    throw new UnauthorizedException("You can only use singers with APPROVED status.");
+                }
+            }
+            allSingersForSubmission.addAll(existingSingers);
+        }
+
+        // ... tạo liên kết submission_singers và submission_tags ...
+        for (Singer singer : allSingersForSubmission) {
+            SubmissionSingers submissionSinger = SubmissionSingers.builder()
+                    .submission(submission)
+                    .singer(singer)
+                    .build();
+            submission.getSubmissionSingers().add(submissionSinger);
+        }
+
+        if (!CollectionUtils.isEmpty(request.getTagIds())) {
+            Set<Tag> tags = new HashSet<>(tagRepository.findAllById(request.getTagIds()));
+            for (Tag tag : tags) {
+                SubmissionTags submissionTag = SubmissionTags.builder()
+                        .submission(submission)
+                        .tag(tag)
+                        .build();
+                submission.getSubmissionTags().add(submissionTag);
+            }
+        }
 
         SongSubmission updatedSubmission = submissionRepository.save(submission);
         return submissionMapper.toDto(updatedSubmission, user);
