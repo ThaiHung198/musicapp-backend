@@ -11,6 +11,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface SongSubmissionRepository extends JpaRepository<SongSubmission, Long> {
@@ -61,4 +62,13 @@ public interface SongSubmissionRepository extends JpaRepository<SongSubmission, 
     
     // Find submissions reviewed by admin
     Page<SongSubmission> findByReviewerIdOrderByReviewDateDesc(Long reviewerId, Pageable pageable);
+
+    @Query("SELECT DISTINCT s FROM SongSubmission s " +
+            "JOIN FETCH s.creator " +
+            "LEFT JOIN FETCH s.submissionSingers ss " + // Đặt bí danh 'ss' cho submissionSingers
+            "LEFT JOIN FETCH ss.singer " +              // TẢI LUÔN 'singer' từ 'ss'
+            "LEFT JOIN FETCH s.submissionTags st " +    // Đặt bí danh 'st' cho submissionTags
+            "LEFT JOIN FETCH st.tag " +                 // TẢI LUÔN 'tag' từ 'st'
+            "WHERE s.id = :id")
+    Optional<SongSubmission> findByIdWithAllRelations(@Param("id") Long id);
 }
