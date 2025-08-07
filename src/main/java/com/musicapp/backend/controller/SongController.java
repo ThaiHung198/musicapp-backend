@@ -196,7 +196,6 @@ public class SongController {
         return ResponseEntity.ok(response);
     }
 
-
     /**
      * Endpoint cho creator xem chi tiết bài hát đã được duyệt của mình.
      */
