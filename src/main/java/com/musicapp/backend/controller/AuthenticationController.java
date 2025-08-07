@@ -1,4 +1,4 @@
-// AuthenticationController.java
+// src/main/java/com/musicapp/backend/controller/AuthenticationController.java
 package com.musicapp.backend.controller;
 
 import com.musicapp.backend.dto.AuthenticationRequest;
@@ -21,16 +21,19 @@ public class AuthenticationController {
 
     private final AuthenticationService authenticationService;
 
+    /**
+     * <<< ĐÃ SỬA: Cập nhật kiểu trả về để chứa token sau khi đăng ký thành công.
+     */
     @PostMapping("/register")
-    public ResponseEntity<BaseResponse<Void>> register(
+    public ResponseEntity<BaseResponse<AuthenticationResponse>> register(
             @Valid @RequestBody RegisterRequest request
     ) {
-        // Gọi service để thực hiện hành động
-        authenticationService.register(request);
+        // Gọi service để thực hiện hành động, service sẽ trả về response chứa token
+        AuthenticationResponse responseData = authenticationService.register(request);
 
-        // Controller tự xây dựng response thành công
+        // Controller xây dựng response thành công và gửi về cho client
         return ResponseEntity.ok(
-                BaseResponse.success("Đăng ký tài khoản thành công!", null)
+                BaseResponse.success("Đăng ký tài khoản thành công!", responseData)
         );
     }
 
