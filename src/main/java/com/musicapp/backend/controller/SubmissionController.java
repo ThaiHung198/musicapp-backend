@@ -68,14 +68,14 @@ public class SubmissionController {
         return ResponseEntity.ok(BaseResponse.success("Submission updated successfully", submission));
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/{id}/withdraw")
     @PreAuthorize("hasRole('CREATOR') or hasRole('ADMIN')")
     public ResponseEntity<BaseResponse<Void>> deleteSubmission(
             @PathVariable Long id,
             Authentication authentication) {
         String username = authentication.getName();
         submissionService.deleteSubmission(id, username);
-        return ResponseEntity.ok(BaseResponse.success("Submission deleted successfully", null));
+        return ResponseEntity.ok(BaseResponse.success("Submission withdrawn successfully", null));
     }
 
     // Admin endpoints for reviewing submissions

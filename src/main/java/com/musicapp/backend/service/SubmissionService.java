@@ -335,9 +335,33 @@ public class SubmissionService {
 
     @Transactional
     public void deleteSubmission(Long id, String username) {
-        User user = userRepository.findByEmail(username)
+        // Bước 1: Tìm User, không đổi.
+        User creator = userRepository.findByEmail(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
-        deleteSubmission(id, user);
+
+        // Bước 2: Tìm submission. Bây giờ chúng ta chỉ cần tìm đơn giản,
+        // không cần fetch phức tạp nữa.
+        SongSubmission submission = submissionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Submission not found with id: " + id));
+
+        // Bước 3: Kiểm tra quyền và trạng thái, không đổi.
+        if (!submission.getCreator().getId().equals(creator.getId())) {
+            throw new UnauthorizedException("You do not have permission to withdraw this submission.");
+        }
+
+        if (submission.getStatus() != SongSubmission.SubmissionStatus.PENDING) {
+            throw new BadRequestException("You can only withdraw submissions that are in PENDING status.");
+        }
+
+        // =================== CÁCH TIẾP CẬN MỚI ===================
+
+        // Bước 4: Gọi các phương thức xóa trực tiếp mà chúng ta vừa tạo.
+        // Thao tác này sẽ xóa các bản ghi con mà không cần tải chúng vào bộ nhớ.
+        submissionSingersRepository.deleteBySubmissionId(id);
+        submissionTagsRepository.deleteBySubmissionId(id);
+
+        // Bước 5: Xóa bản ghi cha. Bây giờ nó đã "cô đơn" và không còn ràng buộc con.
+        submissionRepository.delete(submission);
     }
 
     public PagedResponse<SubmissionDto> getSubmissionsByStatus(SongSubmission.SubmissionStatus status, Pageable pageable) {
