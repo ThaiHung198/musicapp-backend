@@ -30,22 +30,21 @@ public class AuthenticationService {
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
 
-    /**
-     * <<< ĐÃ SỬA: Chuyển kiểu trả về thành 'void'.
-     * Phương thức này chỉ chịu trách nhiệm tạo người dùng, không cần trả về gì cả.
-     */
-    public void register(RegisterRequest request) {
+    public AuthenticationResponse register(RegisterRequest request) {
+        // 1. Kiểm tra email đã tồn tại chưa
         userRepository.findByEmail(request.getEmail())
                 .ifPresent(user -> {
                     throw new ResourceAlreadyExistsException("Email đã tồn tại.");
                 });
 
+        // 2. Tìm vai trò mặc định cho người dùng mới
         Role userRole = roleRepository.findByName("ROLE_USER")
-                .orElseThrow(() -> new ResourceNotFoundException("Vai trò 'ROLE_USER' không tồn tại trong database."));
+                .orElseThrow(() -> new ResourceNotFoundException("Vai trò 'ROLE_USER' không tồn tại trong database. Vui lòng thêm vai trò này."));
 
         Set<Role> roles = new HashSet<>();
         roles.add(userRole);
 
+        // 3. Tạo đối tượng User mới
         var user = User.builder()
                 .displayName(request.getDisplayName())
                 .email(request.getEmail())
@@ -53,14 +52,18 @@ public class AuthenticationService {
                 .roles(roles)
                 .build();
 
+        // 4. Lưu người dùng vào database
         userRepository.save(user);
 
-        // Không còn câu lệnh return ở đây
+        // 5. Tạo JWT token cho người dùng vừa tạo
+        var jwtToken = jwtService.generateToken(user);
+
+        // 6. Trả về token trong AuthenticationResponse
+        return AuthenticationResponse.builder()
+                .token(jwtToken)
+                .build();
     }
 
-    /**
-     * Phương thức này không đổi, vẫn trả về token khi đăng nhập thành công.
-     */
     public AuthenticationResponse authenticate(AuthenticationRequest request) {
         authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
         var user = userRepository.findByEmail(request.getEmail()).orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng."));
