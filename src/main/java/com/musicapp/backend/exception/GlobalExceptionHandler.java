@@ -7,11 +7,23 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.dao.DataIntegrityViolationException;
 
 // ... các import khác nếu có ...
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    @ResponseStatus(HttpStatus.CONFLICT) // Status 409
+    public BaseResponse<Void> handleDataIntegrityViolationException(DataIntegrityViolationException ex) {
+        // Lấy thông điệp lỗi gốc để xem chi tiết hơn
+        String message = "Dữ liệu gửi lên bị trùng lặp hoặc vi phạm ràng buộc.";
+        if (ex.getRootCause() != null) {
+            message = ex.getRootCause().getMessage();
+        }
+        return BaseResponse.error(message);
+    }
 
     // <<< THÊM PHƯƠNG THỨC MỚI NÀY VÀO >>>
     /**

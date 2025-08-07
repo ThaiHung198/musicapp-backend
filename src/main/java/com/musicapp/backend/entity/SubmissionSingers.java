@@ -5,13 +5,21 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
+import lombok.Getter;
+import lombok.Setter;
 
-@Data
+//@Data
+@Getter // <<< Dùng @Getter thay thế
+@Setter // <<< Dùng @Setter thay thế
+@ToString(exclude = {"submission"})
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "submission_singers")
+@Table(name = "submission_singers", uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"submission_id", "singer_id"})
+})
 public class SubmissionSingers {
 
     @Id
@@ -27,9 +35,13 @@ public class SubmissionSingers {
     @JoinColumn(name = "singer_id", nullable = false)
     private Singer singer;
 
-    // Unique constraint to prevent duplicate associations
-    @Table(uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"submission_id", "singer_id"})
-    })
-    public static class SubmissionSingersConstraints {}
+    @Override
+    public String toString() {
+        return "SubmissionSingers{" +
+                "id=" + id +
+                // Chỉ in ID của cha và con để tránh vòng lặp
+                ", submissionId=" + (submission != null ? submission.getId() : "null") +
+                ", singerId=" + (singer != null ? singer.getId() : "null") +
+                '}';
+    }
 }

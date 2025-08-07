@@ -35,7 +35,4 @@ public class CreateSongRequest {
     // Premium features
     @Builder.Default
     private Boolean isPremium = false;
-    
-    @DecimalMin(value = "0.0", message = "Premium price must be non-negative")
-    private BigDecimal premiumPrice;
 }

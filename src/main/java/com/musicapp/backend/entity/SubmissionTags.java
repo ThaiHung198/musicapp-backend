@@ -5,13 +5,19 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
 
-@Data
+
+@Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "submission_tags")
+@Table(name = "submission_tags", uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"submission_id", "tag_id"})
+})
 public class SubmissionTags {
 
     @Id
@@ -26,10 +32,4 @@ public class SubmissionTags {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "tag_id", nullable = false)
     private Tag tag;
-
-    // Unique constraint to prevent duplicate associations
-    @Table(uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"submission_id", "tag_id"})
-    })
-    public static class SubmissionTagsConstraints {}
 }
