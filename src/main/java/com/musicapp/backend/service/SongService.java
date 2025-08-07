@@ -4,6 +4,7 @@ import com.musicapp.backend.dto.song.CreateSongRequest;
 import com.musicapp.backend.dto.song.SongDto;
 import com.musicapp.backend.dto.song.AdminCreateSongRequest;
 import com.musicapp.backend.dto.song.UpdateSongRequest;
+import com.musicapp.backend.dto.song.AdminUpdateSongRequest;
 import com.musicapp.backend.entity.*;
 import com.musicapp.backend.exception.BadRequestException;
 import com.musicapp.backend.exception.ResourceNotFoundException;
@@ -135,6 +136,42 @@ public class SongService {
         Song savedSong = songRepository.save(song);
         // Admin cũng là một "currentUser" khi xem bài hát mình tạo
         return songMapper.toDto(savedSong, admin);
+    }
+
+    @Transactional
+    public SongDto updateSongByAdmin(Long songId, AdminUpdateSongRequest request, User admin) {
+        // 1. Tìm bài hát cần cập nhật
+        Song song = songRepository.findById(songId)
+                .orElseThrow(() -> new ResourceNotFoundException("Song not found with id: " + songId));
+
+        // 2. Cập nhật các trường cơ bản nếu chúng được cung cấp trong request
+        if (request.getTitle() != null) song.setTitle(request.getTitle());
+        if (request.getDescription() != null) song.setDescription(request.getDescription());
+        if (request.getThumbnailPath() != null) song.setThumbnailPath(request.getThumbnailPath());
+        if (request.getIsPremium() != null) song.setIsPremium(request.getIsPremium());
+
+        // 3. Cập nhật danh sách ca sĩ nếu được cung cấp
+        if (request.getSingerIds() != null) {
+            Set<Singer> singers = new HashSet<>(singerRepository.findAllById(request.getSingerIds()));
+
+            // KIỂM TRA TRẠNG THÁI CỦA TỪNG CA SĨ >>>
+            for (Singer singer : singers) {
+                if (singer.getStatus() != Singer.SingerStatus.APPROVED) {
+                    throw new BadRequestException("Singer '" + singer.getName() + "' (ID: " + singer.getId() + ") is not approved yet.");
+                }
+            }
+
+            song.setSingers(singers);
+        }
+
+        // 4. Cập nhật danh sách tags nếu được cung cấp
+        if (request.getTagIds() != null) {
+            Set<Tag> tags = new HashSet<>(tagRepository.findAllById(request.getTagIds()));
+            song.setTags(tags);
+        }
+
+        Song updatedSong = songRepository.save(song);
+        return songMapper.toDto(updatedSong, admin);
     }
 
     @Transactional

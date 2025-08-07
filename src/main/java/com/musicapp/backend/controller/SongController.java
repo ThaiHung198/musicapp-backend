@@ -6,6 +6,7 @@ import com.musicapp.backend.dto.song.CreateSongRequest;
 import com.musicapp.backend.dto.song.SongDto;
 import com.musicapp.backend.dto.song.AdminCreateSongRequest;
 import com.musicapp.backend.dto.song.UpdateSongRequest;
+import com.musicapp.backend.dto.song.AdminUpdateSongRequest;
 import com.musicapp.backend.entity.User;
 import com.musicapp.backend.service.SongService;
 import jakarta.validation.Valid;
@@ -109,6 +110,16 @@ public class SongController {
             @AuthenticationPrincipal User admin) {
         SongDto newSong = songService.createSongByAdmin(request, admin);
         return ResponseEntity.ok(BaseResponse.success("Song created and approved successfully", newSong));
+    }
+
+    @PutMapping("/admin/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BaseResponse<SongDto>> updateSongByAdmin(
+            @PathVariable Long id,
+            @RequestBody AdminUpdateSongRequest request,
+            @AuthenticationPrincipal User admin) {
+        SongDto updatedSong = songService.updateSongByAdmin(id, request, admin);
+        return ResponseEntity.ok(BaseResponse.success("Song updated successfully", updatedSong));
     }
     
     // Creator endpoints
