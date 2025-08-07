@@ -14,6 +14,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -174,5 +175,38 @@ public class SongController {
     public ResponseEntity<BaseResponse<SongDto>> rejectSong(@PathVariable Long id) {
         SongDto song = songService.rejectSong(id);
         return ResponseEntity.ok(BaseResponse.success("Song rejected successfully", song));
+    }
+
+    /**
+     * Endpoint cho creator để lấy danh sách các bài hát đã được duyệt của mình (có phân trang).
+     */
+    @GetMapping("/my/approved")
+    @PreAuthorize("hasRole('CREATOR')")
+    public ResponseEntity<PagedResponse<SongDto>> getMyApprovedSongs(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            Authentication authentication) {
+
+        String username = authentication.getName();
+        Pageable pageable = PageRequest.of(page, size);
+
+        PagedResponse<SongDto> response = songService.getMyApprovedSongs(username, pageable);
+
+        return ResponseEntity.ok(response);
+    }
+
+
+    /**
+     * Endpoint cho creator xem chi tiết bài hát đã được duyệt của mình.
+     */
+    @GetMapping("/my/{id}")
+    @PreAuthorize("hasRole('CREATOR')")
+    public ResponseEntity<BaseResponse<SongDto>> getMyApprovedSongDetails(
+            @PathVariable Long id,
+            Authentication authentication) {
+
+        String username = authentication.getName();
+        SongDto songDto = songService.getMyApprovedSongDetails(id, username);
+        return ResponseEntity.ok(BaseResponse.success("Approved song details retrieved successfully", songDto));
     }
 }

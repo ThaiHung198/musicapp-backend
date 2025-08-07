@@ -1,5 +1,6 @@
 package com.musicapp.backend.service;
 
+import com.musicapp.backend.dto.PagedResponse;
 import com.musicapp.backend.dto.song.CreateSongRequest;
 import com.musicapp.backend.dto.song.SongDto;
 import com.musicapp.backend.dto.song.UpdateSongRequest;
@@ -262,5 +263,56 @@ public class SongService {
     private boolean hasAdminRole(User user) {
         return user.getAuthorities().stream()
                 .anyMatch(grantedAuthority -> grantedAuthority.getAuthority().equals("ROLE_ADMIN"));
+    }
+
+    /**
+     * Lấy danh sách các bài hát đã được duyệt của một creator.
+     *
+     * @param username Tên đăng nhập (email) của creator.
+     * @param pageable Thông tin phân trang.
+     * @return PagedResponse chứa danh sách SongDto.
+     */
+    public PagedResponse<SongDto> getMyApprovedSongs(String username, Pageable pageable) {
+        // 1. Tìm người dùng hiện tại
+        User creator = userRepository.findByEmail(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
+
+        // 2. Gọi repository để lấy trang các bài hát đã được duyệt của người dùng này
+        Page<Song> songPage = songRepository.findByCreatorIdAndStatusOrderByCreatedAtDesc(
+                creator.getId(),
+                Song.SongStatus.APPROVED, // Chỉ lấy các bài hát đã được duyệt
+                pageable
+        );
+
+        // 3. Chuyển đổi Page<Song> thành Page<SongDto>
+        // creator được truyền vào mapper để kiểm tra isLikedByCurrentUser
+        Page<SongDto> dtoPage = songPage.map(song -> songMapper.toDto(song, creator));
+
+        // 4. Tạo và trả về đối tượng PagedResponse
+        return PagedResponse.of(dtoPage.getContent(), dtoPage);
+    }
+
+
+    /**
+     * Lấy thông tin chi tiết một bài hát đã được duyệt của creator.
+     * Chỉ người tạo ra bài hát đó hoặc Admin mới có quyền xem.
+     */
+    public SongDto getMyApprovedSongDetails(Long songId, String username) {
+        // ... giữ nguyên logic của phương thức này ...
+        User currentUser = userRepository.findByEmail(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
+
+        Song song = songRepository.findByIdAndStatusWithDetails(songId, Song.SongStatus.APPROVED)
+                .orElseThrow(() -> new ResourceNotFoundException("Approved song not found with id: " + songId));
+
+        boolean isAdmin = currentUser.getRoles().stream()
+                .anyMatch(role -> role.getName().equals("ROLE_ADMIN"));
+        boolean isCreator = song.getCreator().getId().equals(currentUser.getId());
+
+        if (!isCreator && !isAdmin) {
+            throw new UnauthorizedException("You do not have permission to view details for this song.");
+        }
+
+        return songMapper.toDto(song, currentUser);
     }
 }
