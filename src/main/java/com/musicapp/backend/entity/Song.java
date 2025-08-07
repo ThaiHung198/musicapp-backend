@@ -5,11 +5,16 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
+
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.Set;
 
-@Data
+@Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -60,7 +65,8 @@ public class Song {
             joinColumns = @JoinColumn(name = "song_id"),
             inverseJoinColumns = @JoinColumn(name = "singer_id")
     )
-    private Set<Singer> singers;
+    @Builder.Default
+    private Set<Singer> singers = new HashSet<>(); // Khởi tạo bằng new HashSet<>()
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
@@ -68,16 +74,20 @@ public class Song {
             joinColumns = @JoinColumn(name = "song_id"),
             inverseJoinColumns = @JoinColumn(name = "tag_id")
     )
-    private Set<Tag> tags;
+    @Builder.Default
+    private Set<Tag> tags = new HashSet<>(); // Khởi tạo bằng new HashSet<>()
 
     @ManyToMany(mappedBy = "songs", fetch = FetchType.LAZY)
-    private Set<Playlist> playlists;
+    @Builder.Default
+    private Set<Playlist> playlists = new HashSet<>(); // Khởi tạo bằng new HashSet<>()
 
     @OneToMany(mappedBy = "song", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<Like> likes;
+    @Builder.Default
+    private Set<Like> likes = new HashSet<>(); // Khởi tạo bằng new HashSet<>()
 
     @OneToMany(mappedBy = "song", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<Comment> comments;
+    @Builder.Default
+    private Set<Comment> comments = new HashSet<>(); // Khởi tạo bằng new HashSet<>()
 
     // Link back to original submission
     @OneToOne(fetch = FetchType.LAZY)
@@ -86,5 +96,27 @@ public class Song {
 
     public enum SongStatus {
         PENDING, APPROVED, REJECTED
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Song song = (Song) o;
+        return id != null && id.equals(song.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
+
+    @Override
+    public String toString() {
+        return "Song{" +
+                "id=" + id +
+                ", title='" + title + '\'' +
+                ", status=" + status +
+                '}';
     }
 }

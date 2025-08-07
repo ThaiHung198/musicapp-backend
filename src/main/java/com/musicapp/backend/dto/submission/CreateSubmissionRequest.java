@@ -32,9 +32,6 @@ public class CreateSubmissionRequest {
     @Builder.Default
     private Boolean isPremium = false;
 
-    @DecimalMin(value = "0.0", message = "Premium price must be non-negative")
-    private BigDecimal premiumPrice;
-
     private List<Long> tagIds;
 
     private List<Long> existingSingerIds;
