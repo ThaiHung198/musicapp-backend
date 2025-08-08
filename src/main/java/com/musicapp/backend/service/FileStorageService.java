@@ -1,4 +1,3 @@
-// src/main/java/com/musicapp/backend/service/FileStorageService.java
 package com.musicapp.backend.service;
 
 import com.musicapp.backend.exception.BadRequestException;
@@ -38,25 +37,21 @@ public class FileStorageService {
                 throw new BadRequestException("Sorry! Filename contains invalid path sequence " + originalFileName);
             }
 
-            // Tạo thư mục con nếu chưa tồn tại
-            Path targetLocation = this.fileStorageLocation.resolve(subfolder);
-            Files.createDirectories(targetLocation);
+            Path targetSubfolder = this.fileStorageLocation.resolve(subfolder);
+            Files.createDirectories(targetSubfolder);
 
-            // Tạo tên file duy nhất để tránh trùng lặp
             String fileExtension = "";
-            try {
-                fileExtension = originalFileName.substring(originalFileName.lastIndexOf("."));
-            } catch(Exception e) {
-                fileExtension = "";
+            int lastDotIndex = originalFileName.lastIndexOf(".");
+            if (lastDotIndex >= 0) {
+                fileExtension = originalFileName.substring(lastDotIndex);
             }
             String newFileName = UUID.randomUUID().toString() + fileExtension;
 
-            Path finalPath = targetLocation.resolve(newFileName);
+            Path finalPath = targetSubfolder.resolve(newFileName);
             Files.copy(file.getInputStream(), finalPath, StandardCopyOption.REPLACE_EXISTING);
 
-            // Trả về đường dẫn tương đối để lưu vào DB (ví dụ: /uploads/audio/uuid.mp3)
-            // Dấu / đầu tiên rất quan trọng
-            return "/" + subfolder + "/" + newFileName;
+            // <<< SỬA LỖI: Luôn trả về đường dẫn bắt đầu bằng /uploads/ >>>
+            return "/uploads/" + subfolder + "/" + newFileName;
 
         } catch (IOException ex) {
             throw new RuntimeException("Could not store file " + originalFileName + ". Please try again!", ex);
