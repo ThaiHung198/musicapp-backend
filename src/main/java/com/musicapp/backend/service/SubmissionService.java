@@ -1,11 +1,13 @@
 package com.musicapp.backend.service;
 
+import com.musicapp.backend.dto.PagedResponse;
 import com.musicapp.backend.dto.submission.CreateSubmissionRequest;
+import com.musicapp.backend.dto.submission.CreateSubmissionRequest.NewSingerInfo;
 import com.musicapp.backend.dto.submission.ReviewSubmissionRequest;
 import com.musicapp.backend.dto.submission.SubmissionDto;
-import com.musicapp.backend.dto.PagedResponse;
 import com.musicapp.backend.entity.*;
 import com.musicapp.backend.exception.BadRequestException;
+import com.musicapp.backend.exception.ResourceAlreadyExistsException;
 import com.musicapp.backend.exception.ResourceNotFoundException;
 import com.musicapp.backend.exception.UnauthorizedException;
 import com.musicapp.backend.mapper.SubmissionMapper;
@@ -15,10 +17,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.musicapp.backend.dto.submission.CreateSubmissionRequest.NewSingerInfo;
-import com.musicapp.backend.entity.Singer.SingerStatus;
-import com.musicapp.backend.exception.ResourceAlreadyExistsException;
-
+import org.springframework.web.multipart.MultipartFile;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
@@ -36,22 +35,57 @@ public class SubmissionService {
     private final TagRepository tagRepository;
     private final SongRepository songRepository;
     private final UserRepository userRepository;
-    private final SubmissionSingersRepository submissionSingersRepository; // Vẫn giữ lại để dùng ở nơi khác nếu cần
-    private final SubmissionTagsRepository submissionTagsRepository; // Vẫn giữ lại
+    private final SubmissionSingersRepository submissionSingersRepository;
+    private final SubmissionTagsRepository submissionTagsRepository;
     private final SubmissionMapper submissionMapper;
+    private final FileStorageService fileStorageService;
 
     @Transactional
-    public SubmissionDto createSubmission(CreateSubmissionRequest request, User creator) {
-        // 1. Validate request đầu vào
+    public SubmissionDto createSubmission(CreateSubmissionRequest request, MultipartFile audioFile, MultipartFile thumbnailFile, String username) {
+        User creator = userRepository.findByEmail(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
+
+        String audioFilePath = fileStorageService.storeFile(audioFile, "audio");
+        String thumbnailFilePath = null;
+        if (thumbnailFile != null && !thumbnailFile.isEmpty()) {
+            thumbnailFilePath = fileStorageService.storeFile(thumbnailFile, "images");
+        }
+
         if ((request.getExistingSingerIds() == null || request.getExistingSingerIds().isEmpty()) &&
                 (request.getNewSingers() == null || request.getNewSingers().isEmpty())) {
             throw new BadRequestException("At least one existing or new singer is required.");
         }
+        Set<Singer> allSingersForSubmission = processSingers(request, creator);
 
-        Set<Singer> allSingersForSubmission = new HashSet<>();
+        Set<Tag> tags = new HashSet<>();
+        if (request.getTagIds() != null) {
+            tags.addAll(tagRepository.findAllById(request.getTagIds()));
+        }
 
-        // 2. Xử lý và tạo ca sĩ mới với status PENDING
-        if (request.getNewSingers() != null && !request.getNewSingers().isEmpty()) {
+        SongSubmission submission = SongSubmission.builder()
+                .title(request.getTitle())
+                .description(request.getDescription())
+                .filePath(audioFilePath)
+                .thumbnailPath(thumbnailFilePath)
+                .isPremium(request.getIsPremium())
+                .creator(creator)
+                .build();
+
+        for (Singer singer : allSingersForSubmission) {
+            submission.getSubmissionSingers().add(SubmissionSingers.builder().submission(submission).singer(singer).build());
+        }
+        for (Tag tag : tags) {
+            submission.getSubmissionTags().add(SubmissionTags.builder().submission(submission).tag(tag).build());
+        }
+
+        SongSubmission savedSubmission = submissionRepository.save(submission);
+
+        return submissionMapper.toDto(savedSubmission, creator);
+    }
+
+    private Set<Singer> processSingers(CreateSubmissionRequest request, User creator) {
+        Set<Singer> allSingers = new HashSet<>();
+        if (request.getNewSingers() != null) {
             for (NewSingerInfo newSingerInfo : request.getNewSingers()) {
                 if (singerRepository.existsByEmail(newSingerInfo.getEmail())) {
                     throw new ResourceAlreadyExistsException("A singer with email '" + newSingerInfo.getEmail() + "' already exists.");
@@ -59,53 +93,54 @@ public class SubmissionService {
                 Singer newSinger = Singer.builder()
                         .name(newSingerInfo.getName())
                         .email(newSingerInfo.getEmail())
-                        .avatarPath(newSingerInfo.getAvatarPath())
                         .creator(creator)
-                        .status(SingerStatus.PENDING)
+                        .status(Singer.SingerStatus.PENDING)
                         .build();
-                allSingersForSubmission.add(singerRepository.save(newSinger));
+                allSingers.add(singerRepository.save(newSinger));
             }
         }
-
-        // 3. Xử lý và xác thực các ca sĩ đã có
-        if (request.getExistingSingerIds() != null && !request.getExistingSingerIds().isEmpty()) {
+        if (request.getExistingSingerIds() != null) {
             List<Singer> existingSingers = singerRepository.findAllById(request.getExistingSingerIds());
             for (Singer singer : existingSingers) {
-                boolean isApproved = singer.getStatus() == SingerStatus.APPROVED;
-                boolean isOwnPending = singer.getStatus() == SingerStatus.PENDING &&
+                boolean isApproved = singer.getStatus() == Singer.SingerStatus.APPROVED;
+                boolean isOwnPending = singer.getStatus() == Singer.SingerStatus.PENDING &&
                         singer.getCreator() != null &&
                         singer.getCreator().getId().equals(creator.getId());
                 if (!(isApproved || isOwnPending)) {
                     throw new UnauthorizedException("You do not have permission to use the singer: " + singer.getName());
                 }
             }
-            allSingersForSubmission.addAll(existingSingers);
+            allSingers.addAll(existingSingers);
+        }
+        return allSingers;
+    }
+
+    @Transactional
+    public SubmissionDto createSubmission(CreateSubmissionRequest request, User creator) {
+        if ((request.getExistingSingerIds() == null || request.getExistingSingerIds().isEmpty()) &&
+                (request.getNewSingers() == null || request.getNewSingers().isEmpty())) {
+            throw new BadRequestException("At least one existing or new singer is required.");
         }
 
-        // 4. Xử lý tags
+        Set<Singer> allSingersForSubmission = processSingers(request, creator);
+
         Set<Tag> tags = new HashSet<>();
         if (request.getTagIds() != null) {
             tags.addAll(tagRepository.findAllById(request.getTagIds()));
         }
 
-        // <<< BƯỚC 5 ĐÃ SỬA: Tạo thực thể SongSubmission >>>
-        // Giả định rằng bạn đã thêm @Builder.Default và khởi tạo new HashSet<>() trong Entity
         SongSubmission submission = SongSubmission.builder()
                 .title(request.getTitle())
                 .description(request.getDescription())
-                .filePath(request.getFilePath())
-                .thumbnailPath(request.getThumbnailPath())
                 .isPremium(request.getIsPremium())
                 .creator(creator)
                 .build();
 
-        // <<< BƯỚC 6 ĐÃ SỬA: Tạo các liên kết và thêm vào collection của đối tượng cha >>>
         for (Singer singer : allSingersForSubmission) {
             SubmissionSingers submissionSinger = SubmissionSingers.builder()
                     .submission(submission)
                     .singer(singer)
                     .build();
-            // Thêm trực tiếp vào collection của đối tượng cha
             submission.getSubmissionSingers().add(submissionSinger);
         }
 
@@ -117,16 +152,9 @@ public class SubmissionService {
             submission.getSubmissionTags().add(submissionTag);
         }
 
-        // <<< BƯỚC 7 ĐÃ SỬA: Lưu đối tượng cha, CascadeType.ALL sẽ lo phần còn lại >>>
         SongSubmission savedSubmission = submissionRepository.save(submission);
-
-        // <<< BƯỚC 8 ĐÃ SỬA: Không cần gọi findById nữa, trả về DTO từ đối tượng đã lưu >>>
         return submissionMapper.toDto(savedSubmission, creator);
     }
-
-    // =================================================================
-    // CÁC PHƯƠNG THỨC KHÁC GIỮ NGUYÊN, KHÔNG THAY ĐỔI
-    // =================================================================
 
     public Page<SubmissionDto> getMySubmissions(User creator, Pageable pageable) {
         return submissionRepository.findByCreatorIdOrderBySubmissionDateDesc(creator.getId(), pageable)
@@ -223,8 +251,8 @@ public class SubmissionService {
                     .filePath(submission.getFilePath())
                     .thumbnailPath(submission.getThumbnailPath())
                     .isPremium(submission.getIsPremium())
-                    .status(Song.SongStatus.APPROVED) // Trạng thái bài hát được duyệt
-                    .creator(submission.getCreator()) // Gán người tạo bài hát
+                    .status(Song.SongStatus.APPROVED)
+                    .creator(submission.getCreator())
                     .submission(submission)
                     .singers(singers)
                     .tags(tags)
@@ -280,13 +308,6 @@ public class SubmissionService {
                 .anyMatch(role -> role.getName().equals("ROLE_ADMIN"));
     }
 
-    @Transactional
-    public SubmissionDto createSubmission(CreateSubmissionRequest request, String username) {
-        User creator = userRepository.findByEmail(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
-        return createSubmission(request, creator);
-    }
-
     public PagedResponse<SubmissionDto> getSubmissionsByUser(String username, SongSubmission.SubmissionStatus status, Pageable pageable) {
         User user = userRepository.findByEmail(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
@@ -325,8 +346,6 @@ public class SubmissionService {
 
         submission.setTitle(request.getTitle());
         submission.setDescription(request.getDescription());
-        submission.setFilePath(request.getFilePath());
-        submission.setThumbnailPath(request.getThumbnailPath());
         submission.setIsPremium(request.getIsPremium());
 
         SongSubmission updatedSubmission = submissionRepository.save(submission);
@@ -379,6 +398,7 @@ public class SubmissionService {
         return createPagedResponse(submissions);
     }
 
+    @Transactional
     public SubmissionDto reviewSubmission(Long id, ReviewSubmissionRequest request, String reviewerUsername) {
         User reviewer = userRepository.findByEmail(reviewerUsername)
                 .orElseThrow(() -> new ResourceNotFoundException("Reviewer not found with email: " + reviewerUsername));
