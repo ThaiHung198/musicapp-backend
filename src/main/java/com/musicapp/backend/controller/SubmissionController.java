@@ -1,20 +1,22 @@
 package com.musicapp.backend.controller;
 
+import com.musicapp.backend.dto.BaseResponse;
+import com.musicapp.backend.dto.PagedResponse;
 import com.musicapp.backend.dto.submission.CreateSubmissionRequest;
 import com.musicapp.backend.dto.submission.ReviewSubmissionRequest;
 import com.musicapp.backend.dto.submission.SubmissionDto;
-import com.musicapp.backend.dto.BaseResponse;
-import com.musicapp.backend.dto.PagedResponse;
-import com.musicapp.backend.service.SubmissionService;
 import com.musicapp.backend.entity.SongSubmission.SubmissionStatus;
+import com.musicapp.backend.service.SubmissionService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1/submissions")
@@ -23,13 +25,16 @@ public class SubmissionController {
     @Autowired
     private SubmissionService submissionService;
 
-    @PostMapping
+    @PostMapping(consumes = { MediaType.MULTIPART_FORM_DATA_VALUE })
     @PreAuthorize("hasRole('CREATOR')")
     public ResponseEntity<BaseResponse<SubmissionDto>> createSubmission(
-            @Valid @RequestBody CreateSubmissionRequest request,
+            @RequestPart("submissionRequest") @Valid CreateSubmissionRequest request,
+            @RequestPart("audioFile") MultipartFile audioFile,
+            @RequestPart(value = "thumbnailFile", required = false) MultipartFile thumbnailFile,
             Authentication authentication) {
+
         String username = authentication.getName();
-        SubmissionDto submission = submissionService.createSubmission(request, username);
+        SubmissionDto submission = submissionService.createSubmission(request, audioFile, thumbnailFile, username);
         return ResponseEntity.ok(BaseResponse.success("Submission created successfully", submission));
     }
 
@@ -79,7 +84,6 @@ public class SubmissionController {
         return ResponseEntity.ok(BaseResponse.success("Submission withdrawn successfully", null));
     }
 
-    // Admin endpoints for reviewing submissions
     @GetMapping("/pending")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<PagedResponse<SubmissionDto>> getPendingSubmissions(
@@ -134,7 +138,6 @@ public class SubmissionController {
         return ResponseEntity.ok(BaseResponse.success("Submission rejected successfully", submission));
     }
 
-    // Analytics endpoints
     @GetMapping("/stats/user")
     @PreAuthorize("hasRole('CREATOR') or hasRole('ADMIN')")
     public ResponseEntity<BaseResponse<Object>> getUserSubmissionStats(Authentication authentication) {

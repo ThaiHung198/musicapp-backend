@@ -4,7 +4,9 @@ import com.musicapp.backend.dto.BaseResponse;
 import com.musicapp.backend.dto.PagedResponse;
 import com.musicapp.backend.dto.song.CreateSongRequest;
 import com.musicapp.backend.dto.song.SongDto;
+import com.musicapp.backend.dto.song.AdminCreateSongRequest;
 import com.musicapp.backend.dto.song.UpdateSongRequest;
+import com.musicapp.backend.dto.song.AdminUpdateSongRequest;
 import com.musicapp.backend.entity.User;
 import com.musicapp.backend.service.SongService;
 import jakarta.validation.Valid;
@@ -97,6 +99,28 @@ public class SongController {
         Page<SongDto> songs = songService.getSongsBySinger(singerId, pageable, currentUser);
         PagedResponse<SongDto> response = PagedResponse.of(songs.getContent(), songs);
         return ResponseEntity.ok(BaseResponse.success(response));
+    }
+
+    /**
+     * [ADMIN] Tạo một bài hát mới và duyệt ngay lập tức.
+     */
+    @PostMapping("/admin")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BaseResponse<SongDto>> createSongByAdmin(
+            @Valid @RequestBody AdminCreateSongRequest request,
+            @AuthenticationPrincipal User admin) {
+        SongDto newSong = songService.createSongByAdmin(request, admin);
+        return ResponseEntity.ok(BaseResponse.success("Song created and approved successfully", newSong));
+    }
+
+    @PutMapping("/admin/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BaseResponse<SongDto>> updateSongByAdmin(
+            @PathVariable Long id,
+            @RequestBody AdminUpdateSongRequest request,
+            @AuthenticationPrincipal User admin) {
+        SongDto updatedSong = songService.updateSongByAdmin(id, request, admin);
+        return ResponseEntity.ok(BaseResponse.success("Song updated successfully", updatedSong));
     }
     
     // Creator endpoints
