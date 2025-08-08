@@ -1,5 +1,6 @@
 package com.musicapp.backend.service;
 
+import com.musicapp.backend.dto.PagedResponse;
 import com.musicapp.backend.dto.song.CreateSongRequest;
 import com.musicapp.backend.dto.song.SongDto;
 import com.musicapp.backend.dto.song.AdminCreateSongRequest;
@@ -17,6 +18,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.HashSet;
 import java.util.List;
@@ -341,5 +343,60 @@ public class SongService {
     private boolean hasAdminRole(User user) {
         return user.getAuthorities().stream()
                 .anyMatch(grantedAuthority -> grantedAuthority.getAuthority().equals("ROLE_ADMIN"));
+    }
+
+    /**
+     * Lấy thông tin chi tiết một bài hát đã được duyệt của creator.
+     * Chỉ người tạo ra bài hát đó hoặc Admin mới có quyền xem.
+     */
+    public SongDto getMyApprovedSongDetails(Long songId, String username) {
+        // ... giữ nguyên logic của phương thức này ...
+        User currentUser = userRepository.findByEmail(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
+
+        Song song = songRepository.findByIdAndStatusWithDetails(songId, Song.SongStatus.APPROVED)
+                .orElseThrow(() -> new ResourceNotFoundException("Approved song not found with id: " + songId));
+
+        boolean isAdmin = currentUser.getRoles().stream()
+                .anyMatch(role -> role.getName().equals("ROLE_ADMIN"));
+        boolean isCreator = song.getCreator().getId().equals(currentUser.getId());
+
+        if (!isCreator && !isAdmin) {
+            throw new UnauthorizedException("You do not have permission to view details for this song.");
+        }
+
+        return songMapper.toDto(song, currentUser);
+    }
+
+    public PagedResponse<SongDto> getMyApprovedSongs(String username, String keyword, Pageable pageable) {
+        // 1. Tìm người dùng hiện tại
+        User creator = userRepository.findByEmail(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
+
+        Page<Song> songPage;
+
+        // 2. Kiểm tra xem có từ khóa tìm kiếm không
+        if (StringUtils.hasText(keyword)) {
+            // Nếu có từ khóa, gọi phương thức tìm kiếm
+            songPage = songRepository.searchByTitleForCreatorAndStatus(
+                    keyword,
+                    creator.getId(),
+                    Song.SongStatus.APPROVED,
+                    pageable
+            );
+        } else {
+            // Nếu không có từ khóa, gọi phương thức lấy tất cả như cũ
+            songPage = songRepository.findByCreatorIdAndStatusOrderByCreatedAtDesc(
+                    creator.getId(),
+                    Song.SongStatus.APPROVED,
+                    pageable
+            );
+        }
+
+        // 3. Chuyển đổi Page<Song> thành Page<SongDto>
+        Page<SongDto> dtoPage = songPage.map(song -> songMapper.toDto(song, creator));
+
+        // 4. Tạo và trả về đối tượng PagedResponse
+        return PagedResponse.of(dtoPage.getContent(), dtoPage);
     }
 }

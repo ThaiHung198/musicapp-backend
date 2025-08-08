@@ -37,6 +37,8 @@ public class CreateSubmissionRequest {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class NewSingerInfo {
+        private Long id;
+
         @NotBlank(message = "New singer name is required")
         private String name;
 

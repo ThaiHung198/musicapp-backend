@@ -66,4 +66,25 @@ public interface SongRepository extends JpaRepository<Song, Long> {
     // Premium content queries
     Page<Song> findByIsPremiumTrueAndStatusOrderByCreatedAtDesc(Song.SongStatus status, Pageable pageable);
     Page<Song> findByIsPremiumFalseAndStatusOrderByCreatedAtDesc(Song.SongStatus status, Pageable pageable);
+
+    @Query("SELECT s FROM Song s " +
+            "JOIN FETCH s.creator " +
+            "LEFT JOIN FETCH s.singers " +
+            "LEFT JOIN FETCH s.tags " +
+            "WHERE s.id = :id AND s.status = :status")
+    Optional<Song> findByIdAndStatusWithDetails(@Param("id") Long id, @Param("status") Song.SongStatus status);
+
+    Page<Song> findByCreatorIdAndStatusOrderByCreatedAtDesc(Long creatorId, Song.SongStatus status, Pageable pageable);
+
+    @Query("SELECT s FROM Song s " +
+            "WHERE s.creator.id = :creatorId " +
+            "AND s.status = :status " +
+            "AND LOWER(s.title) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+            "ORDER BY s.createdAt DESC")
+    Page<Song> searchByTitleForCreatorAndStatus(
+            @Param("keyword") String keyword,
+            @Param("creatorId") Long creatorId,
+            @Param("status") Song.SongStatus status,
+            Pageable pageable
+    );
 }
