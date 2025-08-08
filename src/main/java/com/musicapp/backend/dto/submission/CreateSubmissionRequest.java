@@ -1,16 +1,13 @@
+// src/main/java/com/musicapp/backend/dto/submission/CreateSubmissionRequest.java
 package com.musicapp.backend.dto.submission;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.DecimalMin;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.math.BigDecimal;
 import java.util.List;
 
 @Data
@@ -24,23 +21,17 @@ public class CreateSubmissionRequest {
 
     private String description;
 
-    @NotBlank(message = "File path is required")
-    private String filePath;
-
-    private String thumbnailPath;
+    // <<< ĐÃ XÓA: filePath và thumbnailPath vì chúng sẽ được tạo từ file upload
 
     @Builder.Default
     private Boolean isPremium = false;
 
     private List<Long> tagIds;
-
     private List<Long> existingSingerIds;
 
-    // Danh sách thông tin các ca sĩ mới cần tạo và chờ duyệt
     @Valid
     private List<NewSingerInfo> newSingers;
 
-    // DTO con để chứa thông tin ca sĩ mới
     @Data
     @Builder
     @NoArgsConstructor
@@ -53,6 +44,5 @@ public class CreateSubmissionRequest {
         @Email(message = "Invalid email format for new singer")
         private String email;
 
-        private String avatarPath;
     }
 }
