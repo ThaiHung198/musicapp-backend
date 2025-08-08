@@ -75,8 +75,20 @@ public class SubmissionService {
                 boolean isOwnPending = singer.getStatus() == SingerStatus.PENDING &&
                         singer.getCreator() != null &&
                         singer.getCreator().getId().equals(creator.getId());
-                if (!(isApproved || isOwnPending)) {
+
+                // Định nghĩa điều kiện cho phép sử dụng ca sĩ đã bị từ chối >>>
+                boolean isOwnRejected = singer.getStatus() == Singer.SingerStatus.REJECTED &&
+                        singer.getCreator() != null &&
+                        singer.getCreator().getId().equals(creator.getId());
+
+                if (!(isApproved || isOwnPending || isOwnRejected)) {
                     throw new UnauthorizedException("You do not have permission to use the singer: " + singer.getName());
+                }
+
+                // Nếu ca sĩ bị từ chối được dùng lại, chuyển status về PENDING >>>
+                if (isOwnRejected) {
+                    singer.setStatus(Singer.SingerStatus.PENDING);
+                    singerRepository.save(singer); // Lưu lại trạng thái mới
                 }
             }
             allSingersForSubmission.addAll(existingSingers);
@@ -88,7 +100,6 @@ public class SubmissionService {
             tags.addAll(tagRepository.findAllById(request.getTagIds()));
         }
 
-        // <<< BƯỚC 5 ĐÃ SỬA: Tạo thực thể SongSubmission >>>
         // Giả định rằng bạn đã thêm @Builder.Default và khởi tạo new HashSet<>() trong Entity
         SongSubmission submission = SongSubmission.builder()
                 .title(request.getTitle())
@@ -244,6 +255,15 @@ public class SubmissionService {
         } else if ("REJECT".equalsIgnoreCase(request.getAction())) {
             submission.setStatus(SongSubmission.SubmissionStatus.REJECTED);
             submission.setRejectionReason(request.getRejectionReason());
+
+            // Khi từ chối bài hát, từ chối luôn các ca sĩ PENDING đi kèm
+            submission.getSubmissionSingers().stream()
+                    .map(SubmissionSingers::getSinger)
+                    .filter(singer -> singer.getStatus() == Singer.SingerStatus.PENDING)
+                    .forEach(singer -> {
+                        singer.setStatus(Singer.SingerStatus.REJECTED); // Đổi status sang REJECTED
+                        singerRepository.save(singer);
+                    });
         } else {
             throw new BadRequestException("Invalid review action. Must be APPROVE or REJECT");
         }
