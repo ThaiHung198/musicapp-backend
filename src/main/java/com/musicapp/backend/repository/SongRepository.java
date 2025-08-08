@@ -87,4 +87,9 @@ public interface SongRepository extends JpaRepository<Song, Long> {
             @Param("status") Song.SongStatus status,
             Pageable pageable
     );
+
+    @Query("SELECT s FROM Song s WHERE LOWER(s.title) LIKE LOWER(CONCAT('%', :keyword, '%')) ORDER BY s.createdAt DESC")
+    Page<Song> searchAllSongsByTitle(@Param("keyword") String keyword, Pageable pageable);
+
+    Page<Song> findAllByOrderByCreatedAtDesc(Pageable pageable);
 }
