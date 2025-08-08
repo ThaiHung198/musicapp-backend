@@ -11,13 +11,17 @@ import com.musicapp.backend.entity.User;
 import com.musicapp.backend.service.SongService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
 
 import java.util.List;
 
@@ -27,7 +31,32 @@ import java.util.List;
 public class SongController {
     
     private final SongService songService;
-    
+
+    @PostMapping(value = "/admin", consumes = { MediaType.MULTIPART_FORM_DATA_VALUE })
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BaseResponse<SongDto>> createSongByAdmin(
+            @RequestPart("songRequest") @Valid AdminCreateSongRequest request,
+            @RequestPart("audioFile") MultipartFile audioFile,
+            @RequestPart(value = "thumbnailFile", required = false) MultipartFile thumbnailFile,
+            @AuthenticationPrincipal User admin) {
+        SongDto newSong = songService.createSongByAdmin(request, audioFile, thumbnailFile, admin);
+        return ResponseEntity.ok(BaseResponse.success("Song created and approved successfully", newSong));
+    }
+
+    @GetMapping("/admin/all")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BaseResponse<PagedResponse<SongDto>>> getAllSongsForAdmin(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String search,
+            @AuthenticationPrincipal User admin) {
+
+        Pageable pageable = PageRequest.of(page, size);
+        Page<SongDto> songs = songService.getAllSongsForAdmin(search, pageable, admin);
+        PagedResponse<SongDto> response = PagedResponse.of(songs.getContent(), songs);
+        return ResponseEntity.ok(BaseResponse.success(response));
+    }
+
     // Public endpoints (accessible by guests)
     @GetMapping
     public ResponseEntity<BaseResponse<PagedResponse<SongDto>>> getAllSongs(
@@ -98,18 +127,6 @@ public class SongController {
         Page<SongDto> songs = songService.getSongsBySinger(singerId, pageable, currentUser);
         PagedResponse<SongDto> response = PagedResponse.of(songs.getContent(), songs);
         return ResponseEntity.ok(BaseResponse.success(response));
-    }
-
-    /**
-     * [ADMIN] Tạo một bài hát mới và duyệt ngay lập tức.
-     */
-    @PostMapping("/admin")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<BaseResponse<SongDto>> createSongByAdmin(
-            @Valid @RequestBody AdminCreateSongRequest request,
-            @AuthenticationPrincipal User admin) {
-        SongDto newSong = songService.createSongByAdmin(request, admin);
-        return ResponseEntity.ok(BaseResponse.success("Song created and approved successfully", newSong));
     }
 
     @PutMapping("/admin/{id}")
@@ -198,5 +215,38 @@ public class SongController {
     public ResponseEntity<BaseResponse<SongDto>> rejectSong(@PathVariable Long id) {
         SongDto song = songService.rejectSong(id);
         return ResponseEntity.ok(BaseResponse.success("Song rejected successfully", song));
+    }
+
+    /**
+     * Endpoint cho creator để lấy danh sách các bài hát đã được duyệt của mình (có phân trang).
+     */
+    @GetMapping("/my/approved")
+    @PreAuthorize("hasRole('CREATOR')")
+    public ResponseEntity<PagedResponse<SongDto>> getMyApprovedSongs(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String name, // Thêm tham số tìm kiếm
+            Authentication authentication) {
+
+        String username = authentication.getName();
+        Pageable pageable = PageRequest.of(page, size);
+
+        PagedResponse<SongDto> response = songService.getMyApprovedSongs(username, name, pageable);
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Endpoint cho creator xem chi tiết bài hát đã được duyệt của mình.
+     */
+    @GetMapping("/my/{id}")
+    @PreAuthorize("hasRole('CREATOR')")
+    public ResponseEntity<BaseResponse<SongDto>> getMyApprovedSongDetails(
+            @PathVariable Long id,
+            Authentication authentication) {
+
+        String username = authentication.getName();
+        SongDto songDto = songService.getMyApprovedSongDetails(id, username);
+        return ResponseEntity.ok(BaseResponse.success("Approved song details retrieved successfully", songDto));
     }
 }

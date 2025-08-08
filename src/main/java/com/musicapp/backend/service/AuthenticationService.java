@@ -1,6 +1,6 @@
-// src/main/java/com/musicapp/backend/service/AuthenticationService.java
 package com.musicapp.backend.service;
 
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.musicapp.backend.dto.AuthenticationRequest;
 import com.musicapp.backend.dto.AuthenticationResponse;
 import com.musicapp.backend.dto.RegisterRequest;
@@ -16,9 +16,13 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
-import java.util.HashSet;
-import java.util.Set;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import com.musicapp.backend.dto.GoogleLoginRequest;
+import com.musicapp.backend.exception.BadRequestException;
+import java.io.IOException;
+import java.security.GeneralSecurityException;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -29,23 +33,23 @@ public class AuthenticationService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
+    private final GoogleIdTokenVerifier googleIdTokenVerifier;
 
-    /**
-     * <<< ĐÃ SỬA: Chuyển kiểu trả về thành 'void'.
-     * Phương thức này chỉ chịu trách nhiệm tạo người dùng, không cần trả về gì cả.
-     */
-    public void register(RegisterRequest request) {
+    public AuthenticationResponse register(RegisterRequest request) {
+        // 1. Kiểm tra email đã tồn tại chưa
         userRepository.findByEmail(request.getEmail())
                 .ifPresent(user -> {
                     throw new ResourceAlreadyExistsException("Email đã tồn tại.");
                 });
 
+        // 2. Tìm vai trò mặc định cho người dùng mới
         Role userRole = roleRepository.findByName("ROLE_USER")
-                .orElseThrow(() -> new ResourceNotFoundException("Vai trò 'ROLE_USER' không tồn tại trong database."));
+                .orElseThrow(() -> new ResourceNotFoundException("Vai trò 'ROLE_USER' không tồn tại trong database. Vui lòng thêm vai trò này."));
 
         Set<Role> roles = new HashSet<>();
         roles.add(userRole);
 
+        // 3. Tạo đối tượng User mới
         var user = User.builder()
                 .displayName(request.getDisplayName())
                 .email(request.getEmail())
@@ -53,18 +57,63 @@ public class AuthenticationService {
                 .roles(roles)
                 .build();
 
+        // 4. Lưu người dùng vào database
         userRepository.save(user);
 
-        // Không còn câu lệnh return ở đây
+        // 5. Tạo JWT token cho người dùng vừa tạo
+        var jwtToken = jwtService.generateToken(user);
+
+        // 6. Trả về token trong AuthenticationResponse
+        return AuthenticationResponse.builder()
+                .token(jwtToken)
+                .build();
     }
 
-    /**
-     * Phương thức này không đổi, vẫn trả về token khi đăng nhập thành công.
-     */
     public AuthenticationResponse authenticate(AuthenticationRequest request) {
         authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
         var user = userRepository.findByEmail(request.getEmail()).orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng."));
         var jwtToken = jwtService.generateToken(user);
         return AuthenticationResponse.builder().token(jwtToken).build();
+    }
+    public AuthenticationResponse loginWithGoogle(GoogleLoginRequest request) throws GeneralSecurityException, IOException {
+        GoogleIdToken idToken = googleIdTokenVerifier.verify(request.getIdToken());
+        if (idToken == null) {
+            throw new BadRequestException("Token Google không hợp lệ.");
+        }
+
+        GoogleIdToken.Payload payload = idToken.getPayload();
+        String email = payload.getEmail();
+
+        // Tìm hoặc tạo người dùng mới
+        User user = processOAuth2User(payload);
+
+        // Tạo JWT token của ứng dụng và trả về
+        var jwtToken = jwtService.generateToken(user);
+        return AuthenticationResponse.builder().token(jwtToken).build();
+    }
+
+    private User processOAuth2User(GoogleIdToken.Payload payload) {
+        Optional<User> userOptional = userRepository.findByEmail(payload.getEmail());
+
+        if (userOptional.isPresent()) {
+            // User đã tồn tại, trả về user đó
+            return userOptional.get();
+        } else {
+            // User chưa tồn tại, tạo mới
+            Role userRole = roleRepository.findByName("ROLE_USER")
+                    .orElseThrow(() -> new ResourceNotFoundException("Vai trò 'ROLE_USER' không tồn tại."));
+
+            User newUser = User.builder()
+                    .email(payload.getEmail())
+                    .displayName((String) payload.get("name"))
+                    .avatarPath((String) payload.get("picture"))
+                    // Mật khẩu ngẫu nhiên vì user sẽ không bao giờ dùng nó để đăng nhập
+                    .password(passwordEncoder.encode(UUID.randomUUID().toString()))
+                    .provider("google") // Đánh dấu là user từ Google
+                    .roles(new HashSet<>(Collections.singletonList(userRole)))
+                    .build();
+
+            return userRepository.save(newUser);
+        }
     }
 }

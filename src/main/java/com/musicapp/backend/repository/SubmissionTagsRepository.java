@@ -2,6 +2,7 @@ package com.musicapp.backend.repository;
 
 import com.musicapp.backend.entity.SubmissionTags;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -19,7 +20,8 @@ public interface SubmissionTagsRepository extends JpaRepository<SubmissionTags, 
     
     @Query("SELECT st FROM SubmissionTags st WHERE st.submission.id = :submissionId AND st.tag.id = :tagId")
     SubmissionTags findBySubmissionIdAndTagId(@Param("submissionId") Long submissionId, @Param("tagId") Long tagId);
-    
+
+    @Modifying
     @Query("DELETE FROM SubmissionTags st WHERE st.submission.id = :submissionId")
     void deleteBySubmissionId(@Param("submissionId") Long submissionId);
     
