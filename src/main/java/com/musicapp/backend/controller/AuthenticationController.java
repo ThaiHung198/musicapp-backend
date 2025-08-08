@@ -13,6 +13,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import com.musicapp.backend.dto.GoogleLoginRequest;
+import java.io.IOException;
+import java.security.GeneralSecurityException;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -44,6 +47,15 @@ public class AuthenticationController {
         AuthenticationResponse responseData = authenticationService.authenticate(request);
         return ResponseEntity.ok(
                 BaseResponse.success("Đăng nhập thành công!", responseData)
+        );
+    }
+    @PostMapping("/google")
+    public ResponseEntity<BaseResponse<AuthenticationResponse>> authenticateWithGoogle(
+            @Valid @RequestBody GoogleLoginRequest request
+    ) throws GeneralSecurityException, IOException {
+        AuthenticationResponse responseData = authenticationService.loginWithGoogle(request);
+        return ResponseEntity.ok(
+                BaseResponse.success("Đăng nhập bằng Google thành công!", responseData)
         );
     }
 }
