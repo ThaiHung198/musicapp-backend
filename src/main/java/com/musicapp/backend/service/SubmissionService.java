@@ -57,7 +57,7 @@ public class SubmissionService {
         if (CollectionUtils.isEmpty(request.getExistingSingerIds()) && CollectionUtils.isEmpty(request.getNewSingers())) {
             throw new BadRequestException("At least one existing or new singer is required.");
         }
-
+        
         Set<Singer> allSingersForSubmission = processSingers(request, newSingerAvatars, creator);
 
         Set<Tag> tags = new HashSet<>();
@@ -103,7 +103,7 @@ public class SubmissionService {
                     }
                     avatarIndex++;
                 }
-
+                
                 Singer newSinger = Singer.builder()
                         .name(newSingerInfo.getName())
                         .email(newSingerInfo.getEmail())
@@ -114,7 +114,7 @@ public class SubmissionService {
                 allSingers.add(singerRepository.save(newSinger));
             }
         }
-
+        
         if (!CollectionUtils.isEmpty(request.getExistingSingerIds())) {
             List<Singer> existingSingers = singerRepository.findAllById(request.getExistingSingerIds());
             for (Singer singer : existingSingers) {
@@ -151,7 +151,7 @@ public class SubmissionService {
         } else {
             submissionsPage = submissionRepository.findByCreatorIdOrderBySubmissionDateDesc(user.getId(), pageable);
         }
-
+        
         List<SubmissionDto> submissionDtos = submissionsPage.getContent().stream()
                 .map(sub -> submissionMapper.toDto(sub, user))
                 .collect(Collectors.toList());
@@ -162,14 +162,14 @@ public class SubmissionService {
     public SubmissionDto getSubmissionById(Long id, String username) {
         User user = userRepository.findByEmail(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
-
+        
         SongSubmission submission = submissionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Submission not found with id: " + id));
 
         if (!submission.getCreator().getId().equals(user.getId()) && !user.getRoles().stream().anyMatch(role -> role.getName().equals("ROLE_ADMIN"))) {
             throw new UnauthorizedException("You don't have permission to access this submission");
         }
-
+        
         return submissionMapper.toDto(submission, user);
     }
 
@@ -276,7 +276,6 @@ public class SubmissionService {
         if (!submission.getCreator().getId().equals(creator.getId())) {
             throw new UnauthorizedException("You do not have permission to withdraw this submission.");
         }
-
         if (submission.getStatus() != SongSubmission.SubmissionStatus.PENDING) {
             throw new BadRequestException("You can only withdraw submissions that are in PENDING status.");
         }
@@ -311,7 +310,7 @@ public class SubmissionService {
     public SubmissionDto reviewSubmission(Long id, ReviewSubmissionRequest request, String reviewerUsername) {
         User reviewer = userRepository.findByEmail(reviewerUsername)
                 .orElseThrow(() -> new ResourceNotFoundException("Reviewer not found with email: " + reviewerUsername));
-
+        
         SongSubmission submission = submissionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Submission not found with id: " + id));
 
