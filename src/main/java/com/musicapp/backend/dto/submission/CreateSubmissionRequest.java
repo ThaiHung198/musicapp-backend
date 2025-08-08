@@ -46,5 +46,6 @@ public class CreateSubmissionRequest {
         @Email(message = "Invalid email format for new singer")
         private String email;
 
+        private String avatarPath;
     }
 }
