@@ -25,7 +25,7 @@ public interface SubmissionSingersRepository extends JpaRepository<SubmissionSin
     @Query("DELETE FROM SubmissionSingers ss WHERE ss.submission.id = :submissionId")
     void deleteBySubmissionId(@Param("submissionId") Long submissionId);
     
-    @Query("SELECT COUNT(ss) FROM SubmissionSingers ss WHERE ss.singer.id = :singerId")
+//    @Query("SELECT COUNT(ss) FROM SubmissionSingers ss WHERE ss.singer.id = :singerId")
     long countBySingerId(@Param("singerId") Long singerId);
     
     @Query("SELECT ss.singer.id FROM SubmissionSingers ss WHERE ss.submission.id = :submissionId")
