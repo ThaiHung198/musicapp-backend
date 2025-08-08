@@ -33,15 +33,16 @@ public class SecurityConfiguration {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .cors(withDefaults()) // Sử dụng CORS configuration được định nghĩa ở bean bên dưới
+                .cors(withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authorize -> authorize
-                        // --- SỬA ĐỔI QUAN TRỌNG ---
+                        // <<< SỬA LỖI TẠI ĐÂY: Cho phép truy cập công khai vào thư mục uploads >>>
+                        .requestMatchers("/uploads/**").permitAll()
                         // Cho phép preflight request OPTIONS một cách tường minh
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         // Các endpoint public khác
-                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/v3/api-docs/**", "/swagger-ui/**").permitAll()
+                        .requestMatchers("/api/v1/auth/**").permitAll()
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**").permitAll()
                         // Bất kỳ request nào khác đều yêu cầu xác thực
                         .anyRequest().authenticated()
                 )
@@ -55,17 +56,11 @@ public class SecurityConfiguration {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // Cho phép frontend của bạn
         configuration.setAllowedOrigins(List.of("http://localhost:3000", "http://127.0.0.1:3000"));
-        // Cho phép TẤT CẢ các method
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        // Cho phép TẤT CẢ các header
         configuration.setAllowedHeaders(List.of("*"));
-        // Cho phép gửi cookie và thông tin xác thực
         configuration.setAllowCredentials(true);
-
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        // Áp dụng cấu hình này cho tất cả các đường dẫn
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }

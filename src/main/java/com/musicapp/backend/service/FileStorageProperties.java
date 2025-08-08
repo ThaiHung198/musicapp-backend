@@ -1,4 +1,3 @@
-// src/main/java/com/musicapp/backend/service/FileStorageProperties.java
 package com.musicapp.backend.service;
 
 import lombok.Getter;

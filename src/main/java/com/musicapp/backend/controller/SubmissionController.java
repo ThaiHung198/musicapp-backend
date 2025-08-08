@@ -18,6 +18,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1/submissions")
 public class SubmissionController {
@@ -31,10 +33,11 @@ public class SubmissionController {
             @RequestPart("submissionRequest") @Valid CreateSubmissionRequest request,
             @RequestPart("audioFile") MultipartFile audioFile,
             @RequestPart(value = "thumbnailFile", required = false) MultipartFile thumbnailFile,
+            @RequestPart(value = "newSingerAvatars", required = false) List<MultipartFile> newSingerAvatars,
             Authentication authentication) {
 
         String username = authentication.getName();
-        SubmissionDto submission = submissionService.createSubmission(request, audioFile, thumbnailFile, username);
+        SubmissionDto submission = submissionService.createSubmission(request, audioFile, thumbnailFile, newSingerAvatars, username);
         return ResponseEntity.ok(BaseResponse.success("Submission created successfully", submission));
     }
 
