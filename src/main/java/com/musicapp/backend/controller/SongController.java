@@ -34,7 +34,7 @@ public class SongController {
     @GetMapping
     public ResponseEntity<BaseResponse<PagedResponse<SongDto>>> getAllSongs(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "5") int size,
             @RequestParam(required = false) String search,
             @AuthenticationPrincipal User currentUser) {
 
@@ -93,7 +93,7 @@ public class SongController {
     public ResponseEntity<BaseResponse<PagedResponse<SongDto>>> getSongsBySinger(
             @PathVariable Long singerId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "5") int size,
             @AuthenticationPrincipal User currentUser) {
 
         Pageable pageable = PageRequest.of(page, size);
@@ -138,7 +138,7 @@ public class SongController {
     @PreAuthorize("hasAnyRole('CREATOR', 'ADMIN')")
     public ResponseEntity<BaseResponse<PagedResponse<SongDto>>> getMySongs(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "5") int size,
             @AuthenticationPrincipal User creator) {
 
         Pageable pageable = PageRequest.of(page, size);
@@ -179,7 +179,7 @@ public class SongController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BaseResponse<PagedResponse<SongDto>>> getPendingSongs(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(defaultValue = "5") int size) {
 
         Pageable pageable = PageRequest.of(page, size);
         Page<SongDto> songs = songService.getPendingSongs(pageable);
@@ -232,7 +232,7 @@ public class SongController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BaseResponse<PagedResponse<SongDto>>> getAllSongsForAdmin(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "5") int size,
             @RequestParam(required = false) String search,
             @AuthenticationPrincipal User admin) {
 
