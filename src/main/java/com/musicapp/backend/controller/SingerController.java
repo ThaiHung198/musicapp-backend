@@ -4,6 +4,7 @@ import com.musicapp.backend.dto.BaseResponse;
 import com.musicapp.backend.dto.PagedResponse;
 import com.musicapp.backend.dto.singer.CreateSingerRequest;
 import com.musicapp.backend.dto.singer.SingerDto;
+import com.musicapp.backend.dto.singer.AdminCreateSingerRequest;
 import com.musicapp.backend.entity.User;
 import com.musicapp.backend.service.SingerService;
 import jakarta.validation.Valid;
@@ -66,6 +67,19 @@ public class SingerController {
         return ResponseEntity.ok(BaseResponse.success(singer));
     }
 
+    /**
+     * Endpoint dành riêng cho Admin để tạo ca sĩ mới.
+     * Ca sĩ được tạo sẽ có status APPROVED và không thuộc NPT nào.
+     */
+    @PostMapping("/admin")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BaseResponse<SingerDto>> createSingerByAdmin(
+            @Valid @RequestBody AdminCreateSingerRequest request) {
+        SingerDto newSinger = singerService.createSingerByAdmin(request);
+        return ResponseEntity.ok(BaseResponse.success("Admin created singer successfully", newSinger));
+    }
+
+    // Endpoint cũ này Tú giữ lại để tương thích với các logic khác
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BaseResponse<SingerDto>> createSinger(

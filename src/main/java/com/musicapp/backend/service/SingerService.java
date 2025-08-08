@@ -2,6 +2,8 @@ package com.musicapp.backend.service;
 
 import com.musicapp.backend.dto.singer.CreateSingerRequest;
 import com.musicapp.backend.dto.singer.SingerDto;
+import com.musicapp.backend.dto.singer.AdminCreateSingerRequest;
+
 import com.musicapp.backend.entity.Singer;
 import com.musicapp.backend.entity.User;
 import com.musicapp.backend.exception.ResourceAlreadyExistsException;
@@ -66,14 +68,36 @@ public class SingerService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Xử lý logic tạo ca sĩ mới bởi Admin.
+     * Ca sĩ được tạo sẽ có status là APPROVED và không có creator.
+     */
+    @Transactional
+    public SingerDto createSingerByAdmin(AdminCreateSingerRequest request) {
+        // 1. Kiểm tra email đã tồn tại chưa
+        if (singerRepository.existsByEmail(request.getEmail())) {
+            throw new ResourceAlreadyExistsException("Singer already exists with email: " + request.getEmail());
+        }
+
+        // 2. Tạo thực thể Singer
+        Singer singer = Singer.builder()
+                .name(request.getName())
+                .email(request.getEmail())
+                .avatarPath(request.getAvatarPath())
+                .creator(null) // <<< Quan trọng: Không có creator
+                .status(Singer.SingerStatus.APPROVED) // <<< Quan trọng: Status là APPROVED
+                .build();
+
+        // 3. Lưu và trả về DTO
+        Singer savedSinger = singerRepository.save(singer);
+        return singerMapper.toDto(savedSinger);
+    }
+
     @Transactional
     public SingerDto createSinger(CreateSingerRequest request, String creatorUsername) {
         User creator = userRepository.findByEmail(creatorUsername)
                 .orElseThrow(() -> new ResourceNotFoundException("Creator user not found with email: " + creatorUsername));
 
-        if (singerRepository.existsByNameIgnoreCase(request.getName())) {
-            throw new ResourceAlreadyExistsException("Singer already exists with name: " + request.getName());
-        }
         if (singerRepository.existsByEmail(request.getEmail())) {
             throw new ResourceAlreadyExistsException("Singer already exists with email: " + request.getEmail());
         }
@@ -94,12 +118,6 @@ public class SingerService {
     public SingerDto updateSinger(Long id, CreateSingerRequest request) {
         Singer singer = singerRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Singer not found with id: " + id));
-
-        singerRepository.findByNameIgnoreCase(request.getName()).ifPresent(existingSinger -> {
-            if (!existingSinger.getId().equals(id)) {
-                throw new ResourceAlreadyExistsException("Another singer already exists with name: " + request.getName());
-            }
-        });
 
         singerRepository.findByEmail(request.getEmail()).ifPresent(existingSinger -> {
             if (!existingSinger.getId().equals(id)) {
