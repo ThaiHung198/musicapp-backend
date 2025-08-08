@@ -1,4 +1,3 @@
-// src/main/java/com/musicapp/backend/dto/submission/CreateSubmissionRequest.java
 package com.musicapp.backend.dto.submission;
 
 import jakarta.validation.Valid;
@@ -21,8 +20,6 @@ public class CreateSubmissionRequest {
 
     private String description;
 
-    // <<< ĐÃ XÓA: filePath và thumbnailPath vì chúng sẽ được tạo từ file upload
-
     @Builder.Default
     private Boolean isPremium = false;
 
@@ -37,7 +34,7 @@ public class CreateSubmissionRequest {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class NewSingerInfo {
-        private Long id;
+        private Long id; // Dùng khi cập nhật ca sĩ PENDING đã có
 
         @NotBlank(message = "New singer name is required")
         private String name;
@@ -46,6 +43,6 @@ public class CreateSubmissionRequest {
         @Email(message = "Invalid email format for new singer")
         private String email;
 
-        private String avatarPath;
+        private String avatarPath; // Sẽ được service điền vào
     }
 }

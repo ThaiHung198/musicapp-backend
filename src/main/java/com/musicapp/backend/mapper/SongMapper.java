@@ -25,9 +25,8 @@ public class SongMapper {
     public SongDto toDto(Song song, User currentUser) {
         if (song == null) return null;
 
-        boolean canAccess = true; // Default to true for non-premium songs
+        boolean canAccess = true;
         if (song.getIsPremium()) {
-            // If the song is premium, check if the current user (if exists) has an active subscription
             canAccess = (currentUser != null && subscriptionService.hasActivePremiumSubscription(currentUser.getId()));
         }
 
@@ -43,10 +42,10 @@ public class SongMapper {
                 .creatorId(song.getCreator().getId())
                 .creatorName(song.getCreator().getDisplayName())
                 .isPremium(song.getIsPremium())
-                .canAccess(canAccess) // Set the calculated access status
+                .canAccess(canAccess)
                 .singers(song.getSingers() != null ?
                         song.getSingers().stream()
-                                .map(singerMapper::toDtoWithoutSongCount)
+                                .map(singerMapper::toDto)
                                 .collect(Collectors.toList()) : null)
                 .tags(song.getTags() != null ?
                         song.getTags().stream()
