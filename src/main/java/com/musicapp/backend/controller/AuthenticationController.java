@@ -1,10 +1,6 @@
-// src/main/java/com/musicapp/backend/controller/AuthenticationController.java
 package com.musicapp.backend.controller;
 
-import com.musicapp.backend.dto.AuthenticationRequest;
-import com.musicapp.backend.dto.AuthenticationResponse;
-import com.musicapp.backend.dto.BaseResponse;
-import com.musicapp.backend.dto.RegisterRequest;
+import com.musicapp.backend.dto.*;
 import com.musicapp.backend.service.AuthenticationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -13,7 +9,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import com.musicapp.backend.dto.GoogleLoginRequest;
+
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 
@@ -24,17 +20,11 @@ public class AuthenticationController {
 
     private final AuthenticationService authenticationService;
 
-    /**
-     * <<< ĐÃ SỬA: Cập nhật kiểu trả về để chứa token sau khi đăng ký thành công.
-     */
     @PostMapping("/register")
     public ResponseEntity<BaseResponse<AuthenticationResponse>> register(
             @Valid @RequestBody RegisterRequest request
     ) {
-        // Gọi service để thực hiện hành động, service sẽ trả về response chứa token
         AuthenticationResponse responseData = authenticationService.register(request);
-
-        // Controller xây dựng response thành công và gửi về cho client
         return ResponseEntity.ok(
                 BaseResponse.success("Đăng ký tài khoản thành công!", responseData)
         );
@@ -49,6 +39,7 @@ public class AuthenticationController {
                 BaseResponse.success("Đăng nhập thành công!", responseData)
         );
     }
+
     @PostMapping("/google")
     public ResponseEntity<BaseResponse<AuthenticationResponse>> authenticateWithGoogle(
             @Valid @RequestBody GoogleLoginRequest request
@@ -56,6 +47,35 @@ public class AuthenticationController {
         AuthenticationResponse responseData = authenticationService.loginWithGoogle(request);
         return ResponseEntity.ok(
                 BaseResponse.success("Đăng nhập bằng Google thành công!", responseData)
+        );
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<BaseResponse<Void>> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request
+    ) {
+        authenticationService.handleForgotPassword(request);
+        return ResponseEntity.ok(
+                BaseResponse.success("Đã gửi mã OTP đến email của bạn. Vui lòng kiểm tra hộp thư.", null)
+        );
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<BaseResponse<Void>> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request
+    ) {
+        authenticationService.handleResetPassword(request);
+        return ResponseEntity.ok(
+                BaseResponse.success("Đặt lại mật khẩu thành công!", null)
+        );
+    }
+    @PostMapping("/verify-otp")
+    public ResponseEntity<BaseResponse<Void>> verifyOtp(
+            @Valid @RequestBody VerifyOtpRequest request
+    ) {
+        authenticationService.verifyOtp(request);
+        return ResponseEntity.ok(
+                BaseResponse.success("Mã OTP hợp lệ.", null)
         );
     }
 }

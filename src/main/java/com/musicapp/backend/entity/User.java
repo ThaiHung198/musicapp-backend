@@ -3,13 +3,11 @@ package com.musicapp.backend.entity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
-import lombok.Getter;
-import lombok.Setter;
-
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -62,11 +60,15 @@ public class User implements UserDetails {
     @CreationTimestamp
     private LocalDateTime createdAt;
 
-    // --- SỬA ĐỔI QUAN TRỌNG: Bỏ 'nullable = false' ---
-    // Cột này có thể null khi tạo mới và chỉ được cập nhật khi có thay đổi.
     @Column(name = "updated_at")
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+    @Column(name = "otp_code", length = 6)
+    private String otpCode;
+
+    @Column(name = "otp_expiration_time")
+    private LocalDateTime otpExpirationTime;
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
@@ -76,35 +78,32 @@ public class User implements UserDetails {
     )
     private Set<Role> roles;
 
-    // Relationships
     @OneToMany(mappedBy = "creator", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Set<Song> createdSongs;
 
     @OneToMany(mappedBy = "creator", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Set<Playlist> createdPlaylists;
 
+    // SỬA LỖI TẠI ĐÂY: "mappedby" -> "mappedBy"
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<Like> likes;
 
+    // SỬA LỖI TẠI ĐÂY: "mappedby" -> "mappedBy"
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<Comment> comments;
 
-    // Song submissions
     @OneToMany(mappedBy = "creator", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Set<SongSubmission> songSubmissions;
 
     @OneToMany(mappedBy = "reviewer", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Set<SongSubmission> reviewedSubmissions;
 
-    // Transactions
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Set<Transaction> transactions;
 
-    // Subscriptions
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Set<UserSubscription> subscriptions;
 
-    // --- Các phương thức của UserDetails ---
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return this.roles.stream()
