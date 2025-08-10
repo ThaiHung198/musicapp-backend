@@ -63,10 +63,9 @@ public class SingerService {
     }
 
     public List<SingerDto> getSelectableSingersForCreator(User creator) {
-        return singerRepository.findSelectableSingersForCreator(
+        return singerRepository.findByCreatorIdAndStatusOrStatus(
                         creator.getId(),
-                        SingerStatus.APPROVED,
-                        SingerStatus.PENDING
+                        SingerStatus.APPROVED
                 )
                 .stream()
                 .map(singerMapper::toDtoWithoutSongCount)

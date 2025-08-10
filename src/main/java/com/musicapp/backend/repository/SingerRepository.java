@@ -41,11 +41,10 @@ public interface SingerRepository extends JpaRepository<Singer, Long> {
             "ORDER BY s.name ASC")
     Page<SingerDto> searchAllWithSongCount(@Param("keyword") String keyword, Pageable pageable);
 
-    @Query("SELECT s FROM Singer s WHERE s.status = :approvedStatus OR (s.creator.id = :creatorId AND s.status = :pendingStatus) ORDER BY s.name ASC")
-    List<Singer> findSelectableSingersForCreator(
+    @Query("SELECT s FROM Singer s WHERE (s.creator.id = :creatorId AND s.status = :status) OR s.creator.id IS NULL AND s.status = :status ORDER BY s.name ASC")
+    List<Singer> findByCreatorIdAndStatusOrStatus(
             @Param("creatorId") Long creatorId,
-            @Param("approvedStatus") SingerStatus approvedStatus,
-            @Param("pendingStatus") SingerStatus pendingStatus
+            @Param("status") SingerStatus status
     );
 
     @Query("SELECT new com.musicapp.backend.dto.singer.SingerDto(s.id, s.name, s.email, s.avatarPath, COUNT(song.id), c.id, c.displayName, s.status) " +

@@ -14,6 +14,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -30,6 +32,18 @@ import java.util.List;
 public class SongController {
 
     private final SongService songService;
+
+    @GetMapping("/admin/all")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BaseResponse<PagedResponse<SongDto>>> getAllSongsForAdmin(
+            @PageableDefault(sort = "id", direction = Sort.Direction.DESC) Pageable pageable,
+            @RequestParam(required = false) String search,
+            @AuthenticationPrincipal User admin) {
+
+        Page<SongDto> songs = songService.getAllSongsForAdmin(search, pageable, admin);
+        PagedResponse<SongDto> response = PagedResponse.of(songs.getContent(), songs);
+        return ResponseEntity.ok(BaseResponse.success(response));
+    }
 
     @GetMapping
     public ResponseEntity<BaseResponse<PagedResponse<SongDto>>> getAllSongs(
@@ -226,19 +240,5 @@ public class SongController {
         String username = authentication.getName();
         SongDto songDto = songService.getMyApprovedSongDetails(id, username);
         return ResponseEntity.ok(BaseResponse.success("Approved song details retrieved successfully", songDto));
-    }
-
-    @GetMapping("/admin/all")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<BaseResponse<PagedResponse<SongDto>>> getAllSongsForAdmin(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "5") int size,
-            @RequestParam(required = false) String search,
-            @AuthenticationPrincipal User admin) {
-
-        Pageable pageable = PageRequest.of(page, size);
-        Page<SongDto> songs = songService.getAllSongsForAdmin(search, pageable, admin);
-        PagedResponse<SongDto> response = PagedResponse.of(songs.getContent(), songs);
-        return ResponseEntity.ok(BaseResponse.success(response));
     }
 }

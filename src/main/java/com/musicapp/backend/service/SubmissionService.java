@@ -30,7 +30,6 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 public class SubmissionService {
 
     private final SongSubmissionRepository submissionRepository;
@@ -57,13 +56,6 @@ public class SubmissionService {
         if (CollectionUtils.isEmpty(request.getExistingSingerIds()) && CollectionUtils.isEmpty(request.getNewSingers())) {
             throw new BadRequestException("At least one existing or new singer is required.");
         }
-        
-        Set<Singer> allSingersForSubmission = processSingers(request, newSingerAvatars, creator);
-
-        Set<Tag> tags = new HashSet<>();
-        if (request.getTagIds() != null) {
-            tags.addAll(tagRepository.findAllById(request.getTagIds()));
-        }
 
         SongSubmission submission = SongSubmission.builder()
                 .title(request.getTitle())
@@ -72,7 +64,14 @@ public class SubmissionService {
                 .thumbnailPath(thumbnailFilePath)
                 .isPremium(request.getIsPremium())
                 .creator(creator)
+                .status(SongSubmission.SubmissionStatus.PENDING)
                 .build();
+
+        Set<Singer> allSingersForSubmission = processSingers(request, newSingerAvatars, creator);
+        Set<Tag> tags = new HashSet<>();
+        if (request.getTagIds() != null) {
+            tags.addAll(tagRepository.findAllById(request.getTagIds()));
+        }
 
         for (Singer singer : allSingersForSubmission) {
             submission.getSubmissionSingers().add(SubmissionSingers.builder().submission(submission).singer(singer).build());
@@ -103,7 +102,7 @@ public class SubmissionService {
                     }
                     avatarIndex++;
                 }
-                
+
                 Singer newSinger = Singer.builder()
                         .name(newSingerInfo.getName())
                         .email(newSingerInfo.getEmail())
@@ -114,7 +113,7 @@ public class SubmissionService {
                 allSingers.add(singerRepository.save(newSinger));
             }
         }
-        
+
         if (!CollectionUtils.isEmpty(request.getExistingSingerIds())) {
             List<Singer> existingSingers = singerRepository.findAllById(request.getExistingSingerIds());
             for (Singer singer : existingSingers) {
@@ -151,7 +150,7 @@ public class SubmissionService {
         } else {
             submissionsPage = submissionRepository.findByCreatorIdOrderBySubmissionDateDesc(user.getId(), pageable);
         }
-        
+
         List<SubmissionDto> submissionDtos = submissionsPage.getContent().stream()
                 .map(sub -> submissionMapper.toDto(sub, user))
                 .collect(Collectors.toList());
@@ -162,14 +161,14 @@ public class SubmissionService {
     public SubmissionDto getSubmissionById(Long id, String username) {
         User user = userRepository.findByEmail(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
-        
+
         SongSubmission submission = submissionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Submission not found with id: " + id));
 
         if (!submission.getCreator().getId().equals(user.getId()) && !user.getRoles().stream().anyMatch(role -> role.getName().equals("ROLE_ADMIN"))) {
             throw new UnauthorizedException("You don't have permission to access this submission");
         }
-        
+
         return submissionMapper.toDto(submission, user);
     }
 
@@ -192,11 +191,37 @@ public class SubmissionService {
         submission.setDescription(request.getDescription());
         submission.setIsPremium(request.getIsPremium());
 
-        submissionSingersRepository.deleteBySubmissionId(id);
-        submissionTagsRepository.deleteBySubmissionId(id);
-        submission.getSubmissionSingers().clear();
-        submission.getSubmissionTags().clear();
+        Set<Singer> oldSingers = submission.getSubmissionSingers().stream()
+                .map(SubmissionSingers::getSinger)
+                .collect(Collectors.toSet());
 
+        Set<Singer> newSingersForSubmission = processSingersForUpdate(request, user);
+
+        submission.getSubmissionSingers().clear();
+        submissionSingersRepository.deleteBySubmissionId(id);
+
+        for (Singer singer : newSingersForSubmission) {
+            submission.getSubmissionSingers().add(SubmissionSingers.builder().submission(submission).singer(singer).build());
+        }
+
+        Set<Singer> removedSingers = new HashSet<>(oldSingers);
+        removedSingers.removeAll(newSingersForSubmission);
+        cleanupOrphanedPendingSingers(removedSingers);
+
+        submission.getSubmissionTags().clear();
+        submissionTagsRepository.deleteBySubmissionId(id);
+        if (!CollectionUtils.isEmpty(request.getTagIds())) {
+            Set<Tag> tags = new HashSet<>(tagRepository.findAllById(request.getTagIds()));
+            for (Tag tag : tags) {
+                submission.getSubmissionTags().add(SubmissionTags.builder().submission(submission).tag(tag).build());
+            }
+        }
+
+        SongSubmission updatedSubmission = submissionRepository.save(submission);
+        return submissionMapper.toDto(updatedSubmission, user);
+    }
+
+    private Set<Singer> processSingersForUpdate(CreateSubmissionRequest request, User user) {
         Set<Singer> allSingersForSubmission = new HashSet<>();
 
         if (!CollectionUtils.isEmpty(request.getNewSingers())) {
@@ -215,7 +240,6 @@ public class SubmissionService {
                     });
                     singerToProcess.setName(singerInfo.getName());
                     singerToProcess.setEmail(singerInfo.getEmail());
-                    singerToProcess.setAvatarPath(singerInfo.getAvatarPath());
                 } else {
                     if (singerRepository.existsByEmail(singerInfo.getEmail())) {
                         throw new ResourceAlreadyExistsException("A singer with email '" + singerInfo.getEmail() + "' already exists.");
@@ -223,7 +247,6 @@ public class SubmissionService {
                     singerToProcess = Singer.builder()
                             .name(singerInfo.getName())
                             .email(singerInfo.getEmail())
-                            .avatarPath(singerInfo.getAvatarPath())
                             .creator(user)
                             .status(SingerStatus.PENDING)
                             .build();
@@ -235,34 +258,15 @@ public class SubmissionService {
         if (!CollectionUtils.isEmpty(request.getExistingSingerIds())) {
             List<Singer> existingSingers = singerRepository.findAllById(request.getExistingSingerIds());
             for (Singer singer : existingSingers) {
-                if (singer.getStatus() != SingerStatus.APPROVED) {
-                    throw new UnauthorizedException("You can only use singers with APPROVED status.");
+                boolean isApproved = singer.getStatus() == Singer.SingerStatus.APPROVED;
+                boolean isOwn = singer.getCreator() != null && singer.getCreator().getId().equals(user.getId());
+                if (!(isApproved || isOwn)) {
+                    throw new UnauthorizedException("You do not have permission to use the singer: " + singer.getName());
                 }
             }
             allSingersForSubmission.addAll(existingSingers);
         }
-
-        for (Singer singer : allSingersForSubmission) {
-            SubmissionSingers submissionSinger = SubmissionSingers.builder()
-                    .submission(submission)
-                    .singer(singer)
-                    .build();
-            submission.getSubmissionSingers().add(submissionSinger);
-        }
-
-        if (!CollectionUtils.isEmpty(request.getTagIds())) {
-            Set<Tag> tags = new HashSet<>(tagRepository.findAllById(request.getTagIds()));
-            for (Tag tag : tags) {
-                SubmissionTags submissionTag = SubmissionTags.builder()
-                        .submission(submission)
-                        .tag(tag)
-                        .build();
-                submission.getSubmissionTags().add(submissionTag);
-            }
-        }
-
-        SongSubmission updatedSubmission = submissionRepository.save(submission);
-        return submissionMapper.toDto(updatedSubmission, user);
+        return allSingersForSubmission;
     }
 
     @Transactional
@@ -280,9 +284,24 @@ public class SubmissionService {
             throw new BadRequestException("You can only withdraw submissions that are in PENDING status.");
         }
 
-        submissionSingersRepository.deleteBySubmissionId(id);
-        submissionTagsRepository.deleteBySubmissionId(id);
+        Set<Singer> associatedSingers = submission.getSubmissionSingers().stream()
+                .map(SubmissionSingers::getSinger)
+                .collect(Collectors.toSet());
+
         submissionRepository.delete(submission);
+
+        cleanupOrphanedPendingSingers(associatedSingers);
+    }
+
+    private void cleanupOrphanedPendingSingers(Set<Singer> singers) {
+        for (Singer singer : singers) {
+            if (singer.getStatus() == Singer.SingerStatus.PENDING) {
+                long submissionCount = submissionSingersRepository.countBySingerId(singer.getId());
+                if (submissionCount == 0) {
+                    singerRepository.delete(singer);
+                }
+            }
+        }
     }
 
     public PagedResponse<SubmissionDto> getSubmissionsByStatus(SongSubmission.SubmissionStatus status, Pageable pageable) {
@@ -310,7 +329,7 @@ public class SubmissionService {
     public SubmissionDto reviewSubmission(Long id, ReviewSubmissionRequest request, String reviewerUsername) {
         User reviewer = userRepository.findByEmail(reviewerUsername)
                 .orElseThrow(() -> new ResourceNotFoundException("Reviewer not found with email: " + reviewerUsername));
-        
+
         SongSubmission submission = submissionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Submission not found with id: " + id));
 
