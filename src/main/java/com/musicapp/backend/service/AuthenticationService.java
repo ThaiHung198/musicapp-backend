@@ -41,6 +41,11 @@ public class AuthenticationService {
                     throw new ResourceAlreadyExistsException("Email đã tồn tại.");
                 });
 
+        userRepository.findByPhoneNumber(request.getPhoneNumber())
+                .ifPresent(user -> {
+                    throw new ResourceAlreadyExistsException("Số điện thoại đã tồn tại.");
+                });
+
         Role userRole = roleRepository.findByName("ROLE_USER")
                 .orElseThrow(() -> new ResourceNotFoundException("Vai trò 'ROLE_USER' không tồn tại trong database. Vui lòng thêm vai trò này."));
 
@@ -50,6 +55,7 @@ public class AuthenticationService {
         var user = User.builder()
                 .displayName(request.getDisplayName())
                 .email(request.getEmail())
+                .phoneNumber(request.getPhoneNumber())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .roles(roles)
                 .build();
