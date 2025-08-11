@@ -22,7 +22,7 @@ public class SubmissionDto {
     private String filePath;
     private String thumbnailPath;
     private Boolean isPremium;
-    private BigDecimal premiumPrice;
+//    private BigDecimal premiumPrice;
     private String status;
     private LocalDateTime submissionDate;
     private LocalDateTime reviewDate;

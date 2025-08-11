@@ -2,6 +2,7 @@ package com.musicapp.backend.controller;
 
 import com.musicapp.backend.dto.BaseResponse;
 import com.musicapp.backend.dto.PagedResponse;
+import com.musicapp.backend.dto.singer.AdminCreateSingerRequest;
 import com.musicapp.backend.dto.singer.CreateSingerRequest;
 import com.musicapp.backend.dto.singer.SingerDto;
 import com.musicapp.backend.entity.User;
@@ -11,11 +12,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -25,6 +29,26 @@ import java.util.List;
 public class SingerController {
 
     private final SingerService singerService;
+
+    @GetMapping("/admin/all")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BaseResponse<PagedResponse<SingerDto>>> getAllSingersForAdmin(
+            @PageableDefault(sort = "id", direction = Sort.Direction.DESC) Pageable pageable,
+            @RequestParam(required = false) String search) {
+
+        Page<SingerDto> singers = singerService.getAllSingersForAdmin(search, pageable);
+        PagedResponse<SingerDto> response = PagedResponse.of(singers.getContent(), singers);
+        return ResponseEntity.ok(BaseResponse.success(response));
+    }
+
+    @PostMapping(value = "/admin", consumes = { MediaType.MULTIPART_FORM_DATA_VALUE })
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BaseResponse<SingerDto>> createSingerByAdmin(
+            @RequestPart("singerRequest") @Valid AdminCreateSingerRequest request,
+            @RequestPart(value = "avatarFile", required = false) MultipartFile avatarFile) {
+        SingerDto newSinger = singerService.createSingerByAdmin(request, avatarFile);
+        return ResponseEntity.ok(BaseResponse.success("Admin created singer successfully", newSinger));
+    }
 
     @GetMapping("/selectable")
     @PreAuthorize("hasRole('CREATOR')")
@@ -37,11 +61,9 @@ public class SingerController {
 
     @GetMapping
     public ResponseEntity<BaseResponse<PagedResponse<SingerDto>>> getAllSingers(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size,
+            @PageableDefault(sort = "id", direction = Sort.Direction.DESC) Pageable pageable,
             @RequestParam(required = false) String search) {
 
-        Pageable pageable = PageRequest.of(page, size);
         Page<SingerDto> singers;
 
         if (search != null && !search.trim().isEmpty()) {
@@ -64,16 +86,6 @@ public class SingerController {
     public ResponseEntity<BaseResponse<SingerDto>> getSingerById(@PathVariable Long id) {
         SingerDto singer = singerService.getSingerById(id);
         return ResponseEntity.ok(BaseResponse.success(singer));
-    }
-
-    @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<BaseResponse<SingerDto>> createSinger(
-            @Valid @RequestBody CreateSingerRequest request,
-            Authentication authentication) {
-        String creatorUsername = authentication.getName();
-        SingerDto singer = singerService.createSinger(request, creatorUsername);
-        return ResponseEntity.ok(BaseResponse.success("Singer created successfully", singer));
     }
 
     @PutMapping("/{id}")

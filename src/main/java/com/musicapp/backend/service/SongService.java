@@ -1,9 +1,13 @@
 package com.musicapp.backend.service;
 
+import com.musicapp.backend.dto.PagedResponse;
+import com.musicapp.backend.dto.song.AdminCreateSongRequest;
+import com.musicapp.backend.dto.song.AdminUpdateSongRequest;
 import com.musicapp.backend.dto.song.CreateSongRequest;
 import com.musicapp.backend.dto.song.SongDto;
 import com.musicapp.backend.dto.song.UpdateSongRequest;
 import com.musicapp.backend.entity.*;
+import com.musicapp.backend.exception.BadRequestException;
 import com.musicapp.backend.exception.ResourceNotFoundException;
 import com.musicapp.backend.exception.UnauthorizedException;
 import com.musicapp.backend.mapper.SongMapper;
@@ -14,6 +18,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.HashSet;
 import java.util.List;
@@ -29,8 +35,19 @@ public class SongService {
     private final SingerRepository singerRepository;
     private final TagRepository tagRepository;
     private final UserRepository userRepository;
-    private final SubscriptionService subscriptionService; // Dependency đã được thêm vào
+    private final SubscriptionService subscriptionService;
     private final SongMapper songMapper;
+    private final FileStorageService fileStorageService;
+
+    public Page<SongDto> getAllSongsForAdmin(String keyword, Pageable pageable, User admin) {
+        Page<Song> songPage;
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            songPage = songRepository.searchAllSongsByTitle(keyword.trim(), pageable);
+        } else {
+            songPage = songRepository.findAllByOrderByCreatedAtDesc(pageable);
+        }
+        return songPage.map(song -> songMapper.toDto(song, admin));
+    }
 
     public Page<SongDto> getAllApprovedSongs(Pageable pageable, User currentUser) {
         return songRepository.findByStatusOrderByCreatedAtDesc(Song.SongStatus.APPROVED, pageable)
@@ -42,9 +59,9 @@ public class SongService {
                 .map(song -> songMapper.toDto(song, currentUser));
     }
 
-    public SongDto getSongById(Long id, User currentUser) {
-        Song song = songRepository.findByIdAndStatus(id, Song.SongStatus.APPROVED)
-                .orElseThrow(() -> new ResourceNotFoundException("Song not found with id: " + id));
+    public SongDto getSongById(Long songId, User currentUser) {
+        Song song = songRepository.findByIdAndStatus(songId, Song.SongStatus.APPROVED)
+                .orElseThrow(() -> new ResourceNotFoundException("Song not found with id: " + songId));
         return songMapper.toDto(song, currentUser);
     }
 
@@ -52,7 +69,6 @@ public class SongService {
         Song song = songRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Song not found with id: " + id));
 
-        // Check if user is the creator or admin
         if (!song.getCreator().getId().equals(creator.getId()) &&
                 !hasAdminRole(creator)) {
             throw new UnauthorizedException("You don't have permission to access this song");
@@ -96,8 +112,85 @@ public class SongService {
     }
 
     @Transactional
+    public SongDto createSongByAdmin(AdminCreateSongRequest request, MultipartFile audioFile, MultipartFile thumbnailFile, User admin) {
+        String audioFilePath = fileStorageService.storeFile(audioFile, "audio");
+        String thumbnailFilePath = null;
+        if (thumbnailFile != null && !thumbnailFile.isEmpty()) {
+            thumbnailFilePath = fileStorageService.storeFile(thumbnailFile, "images/songs");
+        }
+
+        Set<Singer> singers = new HashSet<>(singerRepository.findAllById(request.getSingerIds()));
+        if (singers.size() != request.getSingerIds().size()) {
+            throw new ResourceNotFoundException("One or more singers not found.");
+        }
+
+        for (Singer singer : singers) {
+            if (singer.getStatus() != Singer.SingerStatus.APPROVED) {
+                throw new BadRequestException("Singer '" + singer.getName() + "' (ID: " + singer.getId() + ") is not approved yet.");
+            }
+        }
+
+        Set<Tag> tags = new HashSet<>();
+        if (request.getTagIds() != null && !request.getTagIds().isEmpty()) {
+            tags.addAll(tagRepository.findAllById(request.getTagIds()));
+        }
+
+        Song song = Song.builder()
+                .title(request.getTitle())
+                .description(request.getDescription())
+                .filePath(audioFilePath)
+                .thumbnailPath(thumbnailFilePath)
+                .creator(admin)
+                .singers(singers)
+                .tags(tags)
+                .isPremium(request.isPremium())
+                .status(Song.SongStatus.APPROVED)
+                .build();
+
+        Song savedSong = songRepository.save(song);
+        return songMapper.toDto(savedSong, admin);
+    }
+
+
+    @Transactional
+    public SongDto updateSongByAdmin(Long songId, AdminUpdateSongRequest request, MultipartFile audioFile, MultipartFile thumbnailFile, User admin) {
+        Song song = songRepository.findById(songId)
+                .orElseThrow(() -> new ResourceNotFoundException("Song not found with id: " + songId));
+
+        if (request.getTitle() != null) song.setTitle(request.getTitle());
+        if (request.getDescription() != null) song.setDescription(request.getDescription());
+        if (request.getIsPremium() != null) song.setIsPremium(request.getIsPremium());
+
+        if (audioFile != null && !audioFile.isEmpty()) {
+            String audioFilePath = fileStorageService.storeFile(audioFile, "audio");
+            song.setFilePath(audioFilePath);
+        }
+        if (thumbnailFile != null && !thumbnailFile.isEmpty()) {
+            String thumbnailFilePath = fileStorageService.storeFile(thumbnailFile, "images/songs");
+            song.setThumbnailPath(thumbnailFilePath);
+        }
+
+        if (request.getSingerIds() != null) {
+            Set<Singer> singers = new HashSet<>(singerRepository.findAllById(request.getSingerIds()));
+            for (Singer singer : singers) {
+                if (singer.getStatus() != Singer.SingerStatus.APPROVED) {
+                    throw new BadRequestException("Singer '" + singer.getName() + "' is not approved yet.");
+                }
+            }
+            song.setSingers(singers);
+        }
+
+        if (request.getTagIds() != null) {
+            Set<Tag> tags = new HashSet<>(tagRepository.findAllById(request.getTagIds()));
+            song.setTags(tags);
+        }
+
+        Song updatedSong = songRepository.save(song);
+        return songMapper.toDto(updatedSong, admin);
+    }
+
+    @Transactional
     public SongDto createSong(CreateSongRequest request, User creator) {
-        // Validate singers exist
         Set<Singer> singers = new HashSet<>();
         for (Long singerId : request.getSingerIds()) {
             Singer singer = singerRepository.findById(singerId)
@@ -105,7 +198,6 @@ public class SongService {
             singers.add(singer);
         }
 
-        // Validate tags exist (if provided)
         Set<Tag> tags = new HashSet<>();
         if (request.getTagIds() != null) {
             for (Long tagId : request.getTagIds()) {
@@ -123,7 +215,7 @@ public class SongService {
                 .creator(creator)
                 .singers(singers)
                 .tags(tags)
-                .isPremium(request.getIsPremium()) // Sử dụng isPremium từ request
+                .isPremium(request.getIsPremium())
                 .status(Song.SongStatus.PENDING)
                 .build();
 
@@ -136,12 +228,10 @@ public class SongService {
         Song song = songRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Song not found with id: " + id));
 
-        // Check permission
         if (!song.getCreator().getId().equals(user.getId()) && !hasAdminRole(user)) {
             throw new UnauthorizedException("You don't have permission to update this song");
         }
 
-        // Update fields if provided
         if (request.getTitle() != null) {
             song.setTitle(request.getTitle());
         }
@@ -152,7 +242,6 @@ public class SongService {
             song.setThumbnailPath(request.getThumbnailPath());
         }
 
-        // Update singers if provided
         if (request.getSingerIds() != null) {
             Set<Singer> singers = new HashSet<>();
             for (Long singerId : request.getSingerIds()) {
@@ -163,7 +252,6 @@ public class SongService {
             song.setSingers(singers);
         }
 
-        // Update tags if provided
         if (request.getTagIds() != null) {
             Set<Tag> tags = new HashSet<>();
             for (Long tagId : request.getTagIds()) {
@@ -174,7 +262,6 @@ public class SongService {
             song.setTags(tags);
         }
 
-        // Reset status to pending if creator updated (admin doesn't need re-approval)
         if (!hasAdminRole(user)) {
             song.setStatus(Song.SongStatus.PENDING);
         }
@@ -188,7 +275,6 @@ public class SongService {
         Song song = songRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Song not found with id: " + id));
 
-        // Check permission
         if (!song.getCreator().getId().equals(user.getId()) && !hasAdminRole(user)) {
             throw new UnauthorizedException("You don't have permission to delete this song");
         }
@@ -230,12 +316,10 @@ public class SongService {
         Song song = songRepository.findById(songId)
                 .orElseThrow(() -> new ResourceNotFoundException("Song not found with id: " + songId));
 
-        // Free songs are accessible to everyone
         if (!song.getIsPremium()) {
             return true;
         }
 
-        // For premium songs, user must be logged in
         if (username == null) {
             return false;
         }
@@ -243,7 +327,6 @@ public class SongService {
         User user = userRepository.findByEmail(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
 
-        // Access is granted only via an active subscription.
         return subscriptionService.hasActivePremiumSubscription(user.getId());
     }
 
@@ -262,5 +345,49 @@ public class SongService {
     private boolean hasAdminRole(User user) {
         return user.getAuthorities().stream()
                 .anyMatch(grantedAuthority -> grantedAuthority.getAuthority().equals("ROLE_ADMIN"));
+    }
+
+    public SongDto getMyApprovedSongDetails(Long songId, String username) {
+        User currentUser = userRepository.findByEmail(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
+
+        Song song = songRepository.findByIdAndStatusWithDetails(songId, Song.SongStatus.APPROVED)
+                .orElseThrow(() -> new ResourceNotFoundException("Approved song not found with id: " + songId));
+
+        boolean isAdmin = currentUser.getRoles().stream()
+                .anyMatch(role -> role.getName().equals("ROLE_ADMIN"));
+        boolean isCreator = song.getCreator().getId().equals(currentUser.getId());
+
+        if (!isCreator && !isAdmin) {
+            throw new UnauthorizedException("You do not have permission to view details for this song.");
+        }
+
+        return songMapper.toDto(song, currentUser);
+    }
+
+    public PagedResponse<SongDto> getMyApprovedSongs(String username, String keyword, Pageable pageable) {
+        User creator = userRepository.findByEmail(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
+
+        Page<Song> songPage;
+
+        if (StringUtils.hasText(keyword)) {
+            songPage = songRepository.searchByTitleForCreatorAndStatus(
+                    keyword,
+                    creator.getId(),
+                    Song.SongStatus.APPROVED,
+                    pageable
+            );
+        } else {
+            songPage = songRepository.findByCreatorIdAndStatusOrderByCreatedAtDesc(
+                    creator.getId(),
+                    Song.SongStatus.APPROVED,
+                    pageable
+            );
+        }
+
+        Page<SongDto> dtoPage = songPage.map(song -> songMapper.toDto(song, creator));
+
+        return PagedResponse.of(dtoPage.getContent(), dtoPage);
     }
 }

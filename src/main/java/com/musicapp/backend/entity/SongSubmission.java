@@ -5,12 +5,16 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Set;
+import java.util.HashSet;
 
-@Data
+@Getter // <<< Dùng @Getter thay thế
+@Setter // <<< Dùng @Setter thay thế
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -62,10 +66,12 @@ public class SongSubmission {
     private User reviewer; // Admin who reviewed
 
     @OneToMany(mappedBy = "submission", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<SubmissionSingers> submissionSingers;
+    @Builder.Default // <<< THÊM ANNOTATION NÀY
+    private Set<SubmissionSingers> submissionSingers = new HashSet<>(); // <<< THÊM KHỞI TẠO
 
     @OneToMany(mappedBy = "submission", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<SubmissionTags> submissionTags;
+    @Builder.Default // <<< THÊM ANNOTATION NÀY
+    private Set<SubmissionTags> submissionTags = new HashSet<>(); // <<< THÊM KHỞI TẠO
 
     // After approval, this submission becomes a Song
     @OneToOne(mappedBy = "submission", cascade = CascadeType.ALL)
@@ -86,5 +92,14 @@ public class SongSubmission {
         public String getDisplayName() {
             return displayName;
         }
+    }
+
+    @Override
+    public String toString() {
+        return "SongSubmission{" +
+                "id=" + id +
+                ", title='" + title + '\'' +
+                ", status=" + status +
+                '}';
     }
 }
