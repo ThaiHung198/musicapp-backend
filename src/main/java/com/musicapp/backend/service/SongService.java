@@ -114,6 +114,10 @@ public class SongService {
     }
 
     public Page<SongDto> getSongsBySinger(Long singerId, Pageable pageable, User currentUser) {
+        if (!singerRepository.existsById(singerId)) {
+            throw new ResourceNotFoundException("Không tìm thấy ca sĩ với ID: " + singerId);
+        }
+
         return songRepository.findBySingerIdAndApproved(singerId, pageable)
                 .map(song -> songMapper.toDto(song, currentUser));
     }
