@@ -80,13 +80,10 @@ public class PlaylistService {
                 throw new UnauthorizedException("Bạn phải đăng nhập để xem playlist này.");
             }
 
-            boolean isAdmin = currentUser.getAuthorities().stream()
-                    .anyMatch(grantedAuthority -> grantedAuthority.getAuthority().equals("ROLE_ADMIN"));
-
             boolean isOwner = playlist.getCreator() != null &&
                     playlist.getCreator().getId().equals(currentUser.getId());
 
-            if (!isAdmin && !isOwner) {
+            if (!isOwner) {
                 throw new UnauthorizedException("Bạn không có quyền xem playlist này.");
             }
         }
