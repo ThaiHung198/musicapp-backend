@@ -49,16 +49,18 @@ public interface SingerRepository extends JpaRepository<Singer, Long> {
 
     @Query("SELECT new com.musicapp.backend.dto.singer.SingerDto(s.id, s.name, s.email, s.avatarPath, COUNT(song.id), c.id, c.displayName, s.status) " +
             "FROM Singer s LEFT JOIN s.songs song LEFT JOIN s.creator c " +
+            "WHERE (:status IS NULL OR s.status = :status) " +
             "GROUP BY s.id, s.name, s.email, s.avatarPath, c.id, c.displayName, s.status " +
             "ORDER BY s.id DESC")
-    Page<SingerDto> findAllWithSongCountForAdmin(Pageable pageable);
+    Page<SingerDto> findAllWithSongCountForAdmin(Pageable pageable, @Param("status") Singer.SingerStatus status);
 
     @Query("SELECT new com.musicapp.backend.dto.singer.SingerDto(s.id, s.name, s.email, s.avatarPath, COUNT(song.id), c.id, c.displayName, s.status) " +
             "FROM Singer s LEFT JOIN s.songs song LEFT JOIN s.creator c " +
             "WHERE LOWER(s.name) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+            "AND (:status IS NULL OR s.status = :status) " +
             "GROUP BY s.id, s.name, s.email, s.avatarPath, c.id, c.displayName, s.status " +
             "ORDER BY s.id DESC")
-    Page<SingerDto> searchAllWithSongCountForAdmin(@Param("keyword") String keyword, Pageable pageable);
+    Page<SingerDto> searchAllWithSongCountForAdmin(@Param("keyword") String keyword, Pageable pageable, @Param("status") Singer.SingerStatus status);
 
     @Query("SELECT s FROM Singer s ORDER BY s.name ASC")
     Page<Singer> findAllOrderByNameAsc(Pageable pageable);
