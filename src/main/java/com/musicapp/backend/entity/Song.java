@@ -3,11 +3,9 @@ package com.musicapp.backend.entity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
-
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -66,7 +64,7 @@ public class Song {
             inverseJoinColumns = @JoinColumn(name = "singer_id")
     )
     @Builder.Default
-    private Set<Singer> singers = new HashSet<>(); // Khởi tạo bằng new HashSet<>()
+    private Set<Singer> singers = new HashSet<>();
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
@@ -75,21 +73,22 @@ public class Song {
             inverseJoinColumns = @JoinColumn(name = "tag_id")
     )
     @Builder.Default
-    private Set<Tag> tags = new HashSet<>(); // Khởi tạo bằng new HashSet<>()
+    private Set<Tag> tags = new HashSet<>();
 
     @ManyToMany(mappedBy = "songs", fetch = FetchType.LAZY)
     @Builder.Default
-    private Set<Playlist> playlists = new HashSet<>(); // Khởi tạo bằng new HashSet<>()
+    private Set<Playlist> playlists = new HashSet<>();
 
+    // Giữ nguyên mối quan hệ với Like
     @OneToMany(mappedBy = "song", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private Set<Like> likes = new HashSet<>(); // Khởi tạo bằng new HashSet<>()
+    private Set<Like> likes = new HashSet<>();
 
-    @OneToMany(mappedBy = "song", cascade = CascadeType.ALL, orphanRemoval = true)
-    @Builder.Default
-    private Set<Comment> comments = new HashSet<>(); // Khởi tạo bằng new HashSet<>()
+    // --- BẮT ĐẦU SỬA LỖI ---
+    // ĐÃ XÓA HOÀN TOÀN MỐI QUAN HỆ VỚI COMMENT ĐỂ TRÁNH LỖI KHÓA NGOẠI
+    // Việc lấy comment sẽ được thực hiện qua CommentRepository
+    // --- KẾT THÚC SỬA LỖI ---
 
-    // Link back to original submission
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "submission_id")
     private SongSubmission submission;

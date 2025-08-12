@@ -15,14 +15,18 @@ import java.util.List;
 @Repository
 public interface PlaylistRepository extends JpaRepository<Playlist, Long> {
 
+    // --- BẮT ĐẦU SỬA LỖI ---
+    // Đã xóa "CAST(SIZE(p.comments) AS long)" khỏi câu truy vấn
+    // vì p.comments không còn là một collection được map bởi JPA.
     @Query("SELECT new com.musicapp.backend.dto.playlist.PlaylistDto(" +
             "p.id, p.name, p.thumbnailPath, p.visibility, p.createdAt, " +
             "p.creator.id, " +
             "CAST(SIZE(p.songs) AS long), " +
-            "CAST(SIZE(p.likes) AS long), " +
-            "CAST(SIZE(p.comments) AS long)) " +
+            "CAST(SIZE(p.likes) AS long)) " +
             "FROM Playlist p WHERE p.creator = :creator ORDER BY p.createdAt DESC")
     List<PlaylistDto> findPlaylistsByCreator(@Param("creator") User creator);
+    // --- KẾT THÚC SỬA LỖI ---
+
 
     Page<Playlist> findByCreatorIdOrderByCreatedAtDesc(Long creatorId, Pageable pageable);
 

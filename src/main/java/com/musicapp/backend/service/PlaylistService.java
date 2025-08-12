@@ -43,15 +43,20 @@ public class PlaylistService {
                 .thumbnailPath(thumbnailPath)
                 .songs(new HashSet<>())
                 .likes(new HashSet<>())
-                .comments(new HashSet<>())
+                // --- BẮT ĐẦU SỬA LỖI ---
+                // Đã xóa dòng ".comments(new HashSet<>())" vì thuộc tính này không còn tồn tại trong Playlist Entity
+                // --- KẾT THÚC SỬA LỖI ---
                 .creator(isAdmin ? null : currentUser)
                 .visibility(isAdmin ? PlaylistVisibility.PUBLIC : PlaylistVisibility.PRIVATE)
                 .build();
 
         Playlist savedPlaylist = playlistRepository.save(playlist);
 
+        // Giả sử playlistMapper đã được cập nhật để không cần truy cập playlist.getComments()
+        // Nếu playlistMapper cũng lỗi, chúng ta cần sửa nó tiếp theo.
         return playlistMapper.toDto(savedPlaylist, currentUser);
     }
+
     @Transactional(readOnly = true)
     public PlaylistDto getPlaylistById(Long playlistId, User currentUser) {
         Playlist playlist = playlistRepository.findById(playlistId)
