@@ -10,13 +10,10 @@ import com.musicapp.backend.service.PlaylistService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestPart;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
@@ -58,5 +55,13 @@ public class PlaylistController {
         return ResponseEntity.ok(BaseResponse.success("Lấy danh sách playlist thành công!", myPlaylists));
     }
 
-
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('USER', 'CREATOR', 'ADMIN')")
+    public ResponseEntity<BaseResponse<Void>> deletePlaylist(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        playlistService.deletePlaylist(id, currentUser);
+        return ResponseEntity.ok(BaseResponse.success("Xóa playlist thành công!", null));
+    }
 }
