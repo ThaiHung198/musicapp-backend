@@ -195,4 +195,29 @@ public class PlaylistService {
         }
         return playlistMapper.toDto(playlist, currentUser);
     }
+
+    @Transactional
+    public PlaylistDto removeSongFromPlaylist(Long playlistId, Long songId, User currentUser) {
+        Playlist playlist = playlistRepository.findById(playlistId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy playlist với ID: " + playlistId));
+
+        boolean isOwner = (playlist.getCreator() != null && playlist.getCreator().getId().equals(currentUser.getId())) ||
+                (playlist.getCreator() == null && currentUser.getAuthorities().stream()
+                        .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN")));
+
+        if (!isOwner) {
+            throw new UnauthorizedException("Bạn không có quyền xóa bài hát khỏi playlist này.");
+        }
+
+        Song songToRemove = songRepository.findById(songId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy bài hát với ID: " + songId + " để xóa."));
+
+        boolean removed = playlist.getSongs().remove(songToRemove);
+
+        if (!removed) {
+            throw new ResourceNotFoundException("Bài hát với ID: " + songId + " không có trong playlist này.");
+        }
+
+        return playlistMapper.toDto(playlist, currentUser);
+    }
 }
