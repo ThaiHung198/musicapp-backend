@@ -1,5 +1,6 @@
 package com.musicapp.backend.service;
 
+import com.musicapp.backend.dto.playlist.AddSongsToPlaylistRequest;
 import com.musicapp.backend.dto.playlist.CreatePlaylistRequest;
 import com.musicapp.backend.dto.playlist.PlaylistDto;
 import com.musicapp.backend.dto.playlist.UpdatePlaylistRequest;
@@ -163,5 +164,35 @@ public class PlaylistService {
         }
 
         playlistRepository.delete(playlist);
+    }
+
+    @Transactional
+    public PlaylistDto addSongsToPlaylist(Long playlistId, AddSongsToPlaylistRequest request, User currentUser) {
+        Playlist playlist = playlistRepository.findById(playlistId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy playlist với ID: " + playlistId));
+
+        boolean isOwner = (playlist.getCreator() != null && playlist.getCreator().getId().equals(currentUser.getId())) ||
+                (playlist.getCreator() == null && currentUser.getAuthorities().stream()
+                        .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN")));
+
+        if (!isOwner) {
+            throw new UnauthorizedException("Bạn không có quyền thêm bài hát vào playlist này.");
+        }
+
+        List<Song> songsToAdd = songRepository.findAllById(request.getSongIds());
+        if (songsToAdd.size() != request.getSongIds().size()) {
+            throw new ResourceNotFoundException("Một hoặc nhiều bài hát trong danh sách không tồn tại.");
+        }
+
+        int songsAddedCount = 0;
+        for (Song song : songsToAdd) {
+            if (song.getStatus() != Song.SongStatus.APPROVED) {
+                continue;
+            }
+            if (playlist.getSongs().add(song)) {
+                songsAddedCount++;
+            }
+        }
+        return playlistMapper.toDto(playlist, currentUser);
     }
 }
