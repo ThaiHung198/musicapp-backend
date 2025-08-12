@@ -64,6 +64,27 @@ public class SongService {
                 .map(song -> songMapper.toDto(song, currentUser));
     }
 
+    @Transactional
+    public SongDto toggleSongVisibility(Long songId, User admin) {
+        // 1. Tìm bài hát trong DB
+        Song song = songRepository.findById(songId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy bài hát với ID: " + songId));
+
+        // 2. Kiểm tra và thay đổi trạng thái
+        if (song.getStatus() == Song.SongStatus.APPROVED) {
+            song.setStatus(Song.SongStatus.HIDDEN);
+        } else if (song.getStatus() == Song.SongStatus.HIDDEN) {
+            song.setStatus(Song.SongStatus.APPROVED);
+        } else {
+            // Không cho phép ẩn/hiện các bài hát đang chờ duyệt hoặc đã bị từ chối
+            throw new BadRequestException("Chỉ có thể ẩn/hiện các bài hát đã được duyệt (APPROVED) hoặc đang bị ẩn (HIDDEN).");
+        }
+
+        // 3. Lưu lại và trả về kết quả
+        Song updatedSong = songRepository.save(song);
+        return songMapper.toDto(updatedSong, admin);
+    }
+
     public Page<SongDto> searchSongs(String keyword, Pageable pageable, User currentUser) {
         return songRepository.searchApprovedSongs(keyword, Song.SongStatus.APPROVED, pageable)
                 .map(song -> songMapper.toDto(song, currentUser));

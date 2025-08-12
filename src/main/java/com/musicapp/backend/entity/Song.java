@@ -44,6 +44,7 @@ public class Song {
     @Builder.Default
     private Boolean isPremium = false;
 
+    @Column(length = 20)
     @Enumerated(EnumType.STRING)
     @Builder.Default
     private SongStatus status = SongStatus.PENDING;
@@ -94,7 +95,10 @@ public class Song {
     private SongSubmission submission;
 
     public enum SongStatus {
-        PENDING, APPROVED, REJECTED
+        PENDING,  // Đang chờ duyệt
+        APPROVED, // Đã duyệt, đang hiển thị
+        REJECTED, // Bị từ chối
+        HIDDEN    // Đã duyệt, nhưng đang bị ẩn
     }
 
     @Override
