@@ -27,4 +27,5 @@ public class TransactionDto {
 
     // Related entity info
     private Long subscriptionId;
+    private LocalDateTime subscriptionEndDate;
 }

@@ -14,7 +14,7 @@ public class TransactionMapper {
             return null;
         }
 
-        return TransactionDto.builder()
+        TransactionDto.TransactionDtoBuilder builder = TransactionDto.builder()
                 .id(transaction.getId())
                 .packageName(transaction.getPackageName())
                 .amount(transaction.getAmount())
@@ -23,8 +23,16 @@ public class TransactionMapper {
                 .status(transaction.getStatus() != null ? transaction.getStatus().name() : null)
                 .createdAt(transaction.getCreatedAt())
                 .userId(transaction.getUser() != null ? transaction.getUser().getId() : null)
-                .userName(transaction.getUser() != null ? transaction.getUser().getDisplayName() : null)
-                .subscriptionId(transaction.getSubscription() != null ? transaction.getSubscription().getId() : null)
-                .build();
+                .userName(transaction.getUser() != null ? transaction.getUser().getDisplayName() : null);
+
+        // Kiểm tra xem giao dịch này có liên kết với một gói đăng ký không
+        if (transaction.getSubscription() != null) {
+            builder.subscriptionId(transaction.getSubscription().getId());
+            // Nếu có, lấy ngày hết hạn từ gói đăng ký đó
+            builder.subscriptionEndDate(transaction.getSubscription().getEndDate());
+        }
+
+        // Hoàn thành việc build DTO
+        return builder.build();
     }
 }
