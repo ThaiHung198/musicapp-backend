@@ -31,7 +31,7 @@ public class PlaylistMapper {
                 .creatorName(playlist.getCreator() != null ? playlist.getCreator().getDisplayName() : "Hệ thống")
                 .songCount(playlist.getSongs() != null ? playlist.getSongs().size() : 0)
                 .songs(playlist.getSongs() != null ? playlist.getSongs().stream()
-                        .map(song -> songMapper.toDto(song, currentUser)) // Sử dụng lại SongMapper
+                        .map(song -> songMapper.toDto(song, currentUser))
                         .collect(Collectors.toList()) : null)
                 .likeCount(likeRepository.countByLikeableIdAndLikeableType(playlist.getId(), Like.LikeableType.PLAYLIST))
                 .isLikedByCurrentUser(currentUser != null && likeRepository.existsByUserIdAndLikeableIdAndLikeableType(
