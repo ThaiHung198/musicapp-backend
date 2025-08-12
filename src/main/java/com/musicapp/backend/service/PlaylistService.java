@@ -62,13 +62,18 @@ public class PlaylistService {
         Playlist playlist = Playlist.builder()
                 .name(request.getName())
                 .thumbnailPath(thumbnailPath)
-                .songs(songs)
-                .creator(currentUser)
+
+                .songs(new HashSet<>())
+                .likes(new HashSet<>())
+                .creator(isAdmin ? null : currentUser)
+
                 .visibility(isAdmin ? PlaylistVisibility.PUBLIC : PlaylistVisibility.PRIVATE)
                 .build();
 
         Playlist savedPlaylist = playlistRepository.save(playlist);
 
+        // Giả sử playlistMapper đã được cập nhật để không cần truy cập playlist.getComments()
+        // Nếu playlistMapper cũng lỗi, chúng ta cần sửa nó tiếp theo.
         return playlistMapper.toDto(savedPlaylist, currentUser);
     }
 

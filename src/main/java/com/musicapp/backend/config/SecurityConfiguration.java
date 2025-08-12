@@ -36,6 +36,7 @@ public class SecurityConfiguration {
                 .cors(withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authorize -> authorize
+
                         // Các endpoint công khai, không cần xác thực
                         .requestMatchers(
                                 "/uploads/**",
@@ -54,7 +55,7 @@ public class SecurityConfiguration {
                                 "/api/v1/likes/*/*/count"
                         ).permitAll()
 
-                        // Bất kỳ request nào khác đều yêu cầu xác thực
+                        // == PHẦN 3: CÁC ENDPOINT CÒN LẠI YÊU CẦU XÁC THỰC ==
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -67,6 +68,7 @@ public class SecurityConfiguration {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
+        // QUAN TRỌNG: Sửa lại danh sách origins cho phù hợp với môi trường của bạn
         configuration.setAllowedOrigins(List.of("http://localhost:3000", "http://127.0.0.1:3000"));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
