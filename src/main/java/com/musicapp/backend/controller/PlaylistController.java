@@ -91,4 +91,15 @@ public class PlaylistController {
         PlaylistDto updatedPlaylist = playlistService.addSongsToPlaylist(id, request, currentUser);
         return ResponseEntity.ok(BaseResponse.success("Thêm bài hát vào playlist thành công!", updatedPlaylist));
     }
+
+    @DeleteMapping("/{playlistId}/songs/{songId}")
+    @PreAuthorize("hasAnyRole('USER', 'CREATOR', 'ADMIN')")
+    public ResponseEntity<BaseResponse<PlaylistDto>> removeSongFromPlaylist(
+            @PathVariable Long playlistId,
+            @PathVariable Long songId,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        PlaylistDto updatedPlaylist = playlistService.removeSongFromPlaylist(playlistId, songId, currentUser);
+        return ResponseEntity.ok(BaseResponse.success("Xóa bài hát khỏi playlist thành công!", updatedPlaylist));
+    }
 }
