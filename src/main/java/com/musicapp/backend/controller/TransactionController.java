@@ -1,9 +1,12 @@
 package com.musicapp.backend.controller;
 
-import com.musicapp.backend.dto.transaction.TransactionDto;
 import com.musicapp.backend.dto.BaseResponse;
 import com.musicapp.backend.dto.PagedResponse;
+import com.musicapp.backend.dto.transaction.CreatePaymentRequest;
+import com.musicapp.backend.dto.transaction.PaymentResponse;
+import com.musicapp.backend.dto.transaction.TransactionDto;
 import com.musicapp.backend.service.TransactionService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -11,6 +14,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/transactions") // Đổi đường dẫn API cho nhất quán
@@ -46,4 +51,26 @@ public class TransactionController {
         TransactionDto transaction = transactionService.getTransactionById(id, username);
         return ResponseEntity.ok(BaseResponse.success("Transaction retrieved successfully", transaction));
     }
+    @PostMapping("/create-payment")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<BaseResponse<PaymentResponse>> createPayment(
+            @Valid @RequestBody CreatePaymentRequest request,
+            Authentication authentication
+    ) {
+        String username = authentication.getName();
+        PaymentResponse paymentResponse = transactionService.createPaymentUrl(username, request);
+        return ResponseEntity.ok(BaseResponse.success("Tạo link thanh toán thành công.", paymentResponse));
+    }
+
+    /**
+     * <<< ENDPOINT MỚI: Endpoint IPN cho MoMo.
+     * Endpoint này phải là public để MoMo có thể gọi.
+     */
+    @PostMapping("/momo-ipn")
+    public ResponseEntity<Void> handleMomoIpn(@RequestBody Map<String, Object> payload) {
+        transactionService.processMomoIpn(payload);
+        // Theo tài liệu MoMo, chỉ cần trả về status 204 No Content là đủ.
+        return ResponseEntity.noContent().build();
+    }
+
 }

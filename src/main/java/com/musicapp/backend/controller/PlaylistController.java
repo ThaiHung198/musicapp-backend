@@ -10,10 +10,16 @@ import com.musicapp.backend.service.PlaylistService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
+
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RestController;
+
 import org.springframework.web.multipart.MultipartFile;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/playlists")
@@ -34,6 +40,7 @@ public class PlaylistController {
         return ResponseEntity.ok(BaseResponse.success("Tạo playlist thành công!", newPlaylist));
     }
 
+
     @GetMapping("/{id}")
     public ResponseEntity<BaseResponse<PlaylistDto>> getPlaylistById(
             @PathVariable Long id,
@@ -42,4 +49,14 @@ public class PlaylistController {
         PlaylistDto playlistDto = playlistService.getPlaylistById(id, currentUser);
         return ResponseEntity.ok(BaseResponse.success("Lấy thông tin playlist thành công!", playlistDto));
     }
+
+    @GetMapping("/my-playlists")
+    public ResponseEntity<BaseResponse<List<PlaylistDto>>> getMyPlaylists(
+            @AuthenticationPrincipal User currentUser
+    ) {
+        List<PlaylistDto> myPlaylists = playlistService.getMyPlaylists(currentUser);
+        return ResponseEntity.ok(BaseResponse.success("Lấy danh sách playlist thành công!", myPlaylists));
+    }
+
+
 }
