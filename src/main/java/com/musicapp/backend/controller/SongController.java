@@ -33,6 +33,16 @@ public class SongController {
 
     private final SongService songService;
 
+    @GetMapping("/search-for-playlist")
+    public ResponseEntity<BaseResponse<List<SongDto>>> searchForPlaylist(
+            @RequestParam String keyword,
+            @AuthenticationPrincipal User currentUser) {
+        List<SongDto> songs = songService.searchApprovedSongsForPlaylist(keyword, currentUser);
+        return ResponseEntity.ok(BaseResponse.success(songs));
+    }
+
+    // ... các endpoint khác giữ nguyên
+
     @GetMapping("/admin/all")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BaseResponse<PagedResponse<SongDto>>> getAllSongsForAdmin(
@@ -215,7 +225,6 @@ public class SongController {
         return ResponseEntity.ok(BaseResponse.success("Song rejected successfully", song));
     }
 
-    // THÊM ENDPOINT MỚI
     @GetMapping("/my-library")
     @PreAuthorize("hasRole('CREATOR')")
     public ResponseEntity<BaseResponse<PagedResponse<SongDto>>> getMyLibrary(

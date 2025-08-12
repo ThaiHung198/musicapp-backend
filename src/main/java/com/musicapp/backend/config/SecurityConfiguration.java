@@ -1,4 +1,3 @@
-// src/main/java/com/musicapp/backend/config/SecurityConfiguration.java
 package com.musicapp.backend.config;
 
 import com.musicapp.backend.security.JwtAuthenticationFilter;
@@ -37,17 +36,17 @@ public class SecurityConfiguration {
                 .cors(withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authorize -> authorize
-                        // == PHẦN 1: CÁC ENDPOINT CÔNG KHAI TUYỆT ĐỐI (cho mọi method) ==
+
+                        // Các endpoint công khai, không cần xác thực
                         .requestMatchers(
                                 "/uploads/**",
-                                "/api/v1/auth/**",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
+                                "/api/v1/auth/**",
                                 "/api/v1/transactions/momo-ipn"
                         ).permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // == PHẦN 2: CÁC ENDPOINT GET CÔNG KHAI (chỉ cho method GET) ==
                         .requestMatchers(HttpMethod.GET,
                                 "/api/v1/songs/**",
                                 "/api/v1/playlists/**",

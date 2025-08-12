@@ -14,56 +14,43 @@ import java.util.Optional;
 
 @Repository
 public interface SongRepository extends JpaRepository<Song, Long> {
-    
-    // Basic CRUD
+
     Optional<Song> findByIdAndStatus(Long id, Song.SongStatus status);
-    
-    // Find by creator
+
     Page<Song> findByCreatorIdOrderByCreatedAtDesc(Long creatorId, Pageable pageable);
-    
-    // Find by status
+
     Page<Song> findByStatusOrderByCreatedAtDesc(Song.SongStatus status, Pageable pageable);
-    
-    // Search functionality
+
     @Query("SELECT s FROM Song s WHERE s.status = :status AND " +
-           "(LOWER(s.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-           "EXISTS (SELECT 1 FROM s.singers singer WHERE LOWER(singer.name) LIKE LOWER(CONCAT('%', :keyword, '%'))))")
-    Page<Song> searchApprovedSongs(@Param("keyword") String keyword, 
-                                   @Param("status") Song.SongStatus status, 
+            "(LOWER(s.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+            "EXISTS (SELECT 1 FROM s.singers singer WHERE LOWER(singer.name) LIKE LOWER(CONCAT('%', :keyword, '%'))))")
+    Page<Song> searchApprovedSongs(@Param("keyword") String keyword,
+                                   @Param("status") Song.SongStatus status,
                                    Pageable pageable);
-    
-    // Top songs by listen count
+
     @Query("SELECT s FROM Song s WHERE s.status = 'APPROVED' ORDER BY s.listenCount DESC")
     List<Song> findTopSongsByListenCount(Pageable pageable);
-    
-    // Recently created approved songs
+
     @Query("SELECT s FROM Song s WHERE s.status = 'APPROVED' ORDER BY s.createdAt DESC")
     List<Song> findRecentlyCreatedSongs(Pageable pageable);
-    
-    // Most liked songs
+
     @Query("SELECT s FROM Song s WHERE s.status = 'APPROVED' ORDER BY SIZE(s.likes) DESC")
     List<Song> findMostLikedSongs(Pageable pageable);
-    
-    // Songs by singer
+
     @Query("SELECT s FROM Song s JOIN s.singers singer WHERE singer.id = :singerId AND s.status = 'APPROVED' ORDER BY s.createdAt DESC")
     Page<Song> findBySingerIdAndApproved(@Param("singerId") Long singerId, Pageable pageable);
-    
-    // Songs by tag
+
     @Query("SELECT s FROM Song s JOIN s.tags tag WHERE tag.id = :tagId AND s.status = 'APPROVED' ORDER BY s.createdAt DESC")
     Page<Song> findByTagIdAndApproved(@Param("tagId") Long tagId, Pageable pageable);
-    
-    // Increment listen count
+
     @Modifying
     @Query("UPDATE Song s SET s.listenCount = s.listenCount + 1 WHERE s.id = :songId")
     void incrementListenCount(@Param("songId") Long songId);
-    
-    // Count songs by status
+
     long countByStatus(Song.SongStatus status);
-    
-    // Count songs by creator
+
     long countByCreatorId(Long creatorId);
-    
-    // Premium content queries
+
     Page<Song> findByIsPremiumTrueAndStatusOrderByCreatedAtDesc(Song.SongStatus status, Pageable pageable);
     Page<Song> findByIsPremiumFalseAndStatusOrderByCreatedAtDesc(Song.SongStatus status, Pageable pageable);
 
@@ -92,4 +79,7 @@ public interface SongRepository extends JpaRepository<Song, Long> {
     Page<Song> searchAllSongsByTitle(@Param("keyword") String keyword, Pageable pageable);
 
     Page<Song> findAllByOrderByCreatedAtDesc(Pageable pageable);
+
+    @Query("SELECT s FROM Song s WHERE s.status = 'APPROVED' AND LOWER(s.title) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+    List<Song> findApprovedSongsForPlaylist(@Param("keyword") String keyword, Pageable pageable);
 }

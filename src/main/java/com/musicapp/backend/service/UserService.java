@@ -5,6 +5,7 @@ import com.musicapp.backend.dto.user.UpdateProfileRequest;
 import com.musicapp.backend.dto.user.UserProfileDto;
 import com.musicapp.backend.entity.User;
 import com.musicapp.backend.exception.BadRequestException;
+import com.musicapp.backend.exception.ResourceNotFoundException;
 import com.musicapp.backend.mapper.UserMapper;
 import com.musicapp.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -26,8 +27,11 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private static final List<String> VALID_GENDERS = Arrays.asList("Male", "Female", "Other");
 
+    @Transactional(readOnly = true)
     public UserProfileDto getCurrentUserProfile(User currentUser) {
-        return userMapper.toUserProfileDto(currentUser);
+        User user = userRepository.findByEmail(currentUser.getEmail())
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng."));
+        return userMapper.toUserProfileDto(user);
     }
 
     @Transactional

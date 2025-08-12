@@ -9,6 +9,7 @@ import com.musicapp.backend.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.musicapp.backend.exception.BadRequestException;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -70,12 +71,20 @@ public class TagService {
         Tag updatedTag = tagRepository.save(tag);
         return tagMapper.toDto(updatedTag);
     }
-    
+
     @Transactional
     public void deleteTag(Long id) {
-        if (!tagRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Tag not found with id: " + id);
+        // 1. Kiểm tra tag tồn tại
+        Tag tag = tagRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tag với ID: " + id));
+
+        // 2. Kiểm tra xem tag có đang được sử dụng không
+        long songCount = tagRepository.countSongsByTagId(id);
+        if (songCount > 0) {
+            throw new BadRequestException("Không thể xóa tag '" + tag.getName() + "' vì nó đang được sử dụng bởi " + songCount + " bài hát.");
         }
-        tagRepository.deleteById(id);
+
+        // 3. Nếu không, tiến hành xóa
+        tagRepository.delete(tag);
     }
 }
