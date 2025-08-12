@@ -1,3 +1,4 @@
+// src/main/java/com/musicapp/backend/config/SecurityConfiguration.java
 package com.musicapp.backend.config;
 
 import com.musicapp.backend.security.JwtAuthenticationFilter;
@@ -36,14 +37,13 @@ public class SecurityConfiguration {
                 .cors(withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authorize -> authorize
-                        // <<< SỬA LỖI TẠI ĐÂY: Cho phép truy cập công khai vào thư mục uploads >>>
                         .requestMatchers("/uploads/**").permitAll()
-                        // Cho phép preflight request OPTIONS một cách tường minh
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        // Các endpoint public khác
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**").permitAll()
-                        // Bất kỳ request nào khác đều yêu cầu xác thực
+                        // <<< Cho phép MoMo truy cập IPN endpoint >>>
+                        .requestMatchers("/api/v1/transactions/momo-ipn").permitAll()
+
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
