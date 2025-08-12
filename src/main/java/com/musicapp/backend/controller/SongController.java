@@ -89,6 +89,16 @@ public class SongController {
         return ResponseEntity.ok(BaseResponse.success("Listen count incremented", null));
     }
 
+    @PostMapping("/{id}/toggle-visibility")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BaseResponse<SongDto>> toggleVisibility(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User admin) {
+        SongDto updatedSong = songService.toggleSongVisibility(id, admin);
+        String message = updatedSong.getStatus().equals("HIDDEN") ? "Ẩn bài hát thành công." : "Hiện bài hát thành công.";
+        return ResponseEntity.ok(BaseResponse.success(message, updatedSong));
+    }
+
     @GetMapping("/top")
     public ResponseEntity<BaseResponse<List<SongDto>>> getTopSongs(
             @RequestParam(defaultValue = "10") int limit,
