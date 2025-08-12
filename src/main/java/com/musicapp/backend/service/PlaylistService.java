@@ -5,6 +5,11 @@ import com.musicapp.backend.dto.playlist.PlaylistDto;
 import com.musicapp.backend.entity.Playlist;
 import com.musicapp.backend.entity.Playlist.PlaylistVisibility;
 import com.musicapp.backend.entity.User;
+
+import com.musicapp.backend.exception.BadRequestException;
+import com.musicapp.backend.exception.ResourceNotFoundException;
+import com.musicapp.backend.exception.UnauthorizedException;
+
 import com.musicapp.backend.mapper.PlaylistMapper;
 import com.musicapp.backend.repository.PlaylistRepository;
 import lombok.RequiredArgsConstructor;
@@ -47,10 +52,32 @@ public class PlaylistService {
 
         return playlistMapper.toDto(savedPlaylist, currentUser);
     }
+    @Transactional(readOnly = true)
+    public PlaylistDto getPlaylistById(Long playlistId, User currentUser) {
+        Playlist playlist = playlistRepository.findById(playlistId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy playlist với ID: " + playlistId));
+
+        if (playlist.getVisibility() == Playlist.PlaylistVisibility.PRIVATE) {
+            if (currentUser == null) {
+                throw new UnauthorizedException("Bạn phải đăng nhập để xem playlist này.");
+            }
+
+            boolean isOwner = playlist.getCreator() != null &&
+                    playlist.getCreator().getId().equals(currentUser.getId());
+
+            if (!isOwner) {
+                throw new UnauthorizedException("Bạn không có quyền xem playlist này.");
+            }
+        }
+
+        return playlistMapper.toDto(playlist, currentUser);
+    }
+
 
     public List<PlaylistDto> getMyPlaylists(User currentUser) {
         List<PlaylistDto> playlists = playlistRepository.findPlaylistsByCreator(currentUser);
         playlists.forEach(p -> p.setCreatorName(currentUser.getUsername()));
         return playlists;
     }
+
 }

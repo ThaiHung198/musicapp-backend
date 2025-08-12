@@ -11,11 +11,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+
 import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
@@ -27,6 +29,7 @@ public class PlaylistController {
     private final PlaylistService playlistService;
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyRole('USER', 'CREATOR', 'ADMIN')")
     public ResponseEntity<BaseResponse<PlaylistDto>> createPlaylist(
             @RequestPart("request") String requestJson,
             @RequestPart(value = "thumbnailFile", required = false) MultipartFile thumbnailFile,
@@ -37,6 +40,16 @@ public class PlaylistController {
         return ResponseEntity.ok(BaseResponse.success("Tạo playlist thành công!", newPlaylist));
     }
 
+
+    @GetMapping("/{id}")
+    public ResponseEntity<BaseResponse<PlaylistDto>> getPlaylistById(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        PlaylistDto playlistDto = playlistService.getPlaylistById(id, currentUser);
+        return ResponseEntity.ok(BaseResponse.success("Lấy thông tin playlist thành công!", playlistDto));
+    }
+
     @GetMapping("/my-playlists")
     public ResponseEntity<BaseResponse<List<PlaylistDto>>> getMyPlaylists(
             @AuthenticationPrincipal User currentUser
@@ -44,5 +57,6 @@ public class PlaylistController {
         List<PlaylistDto> myPlaylists = playlistService.getMyPlaylists(currentUser);
         return ResponseEntity.ok(BaseResponse.success("Lấy danh sách playlist thành công!", myPlaylists));
     }
+
 
 }

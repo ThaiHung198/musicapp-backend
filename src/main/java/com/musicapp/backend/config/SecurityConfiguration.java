@@ -40,6 +40,7 @@ public class SecurityConfiguration {
                         .requestMatchers("/uploads/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/v1/auth/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/playlists/**", "/api/v1/songs/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**").permitAll()
 
                         // <<< Cho phép MoMo truy cập IPN endpoint >>>
