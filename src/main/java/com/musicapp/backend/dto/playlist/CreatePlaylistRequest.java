@@ -6,14 +6,16 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class CreatePlaylistRequest {
-    
-    @NotBlank(message = "Playlist name is required")
+
+    @NotBlank(message = "Tên playlist là bắt buộc")
     private String name;
-    
-    private String thumbnailPath;
+
+    private List<Long> songIds;
 }
