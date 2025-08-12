@@ -18,16 +18,6 @@ public class CreatorService {
     private final SubmissionService submissionService;
     private final SongService songService;
 
-    /**
-     * Lấy thư viện của một creator, bao gồm các yêu cầu đã gửi và các bài hát đã được đăng.
-     *
-     * @param username           Tên đăng nhập (email) của creator.
-     * @param submissionStatus   Trạng thái để lọc danh sách yêu cầu (có thể null).
-     * @param submissionPageable Phân trang cho danh sách yêu cầu.
-     * @param songKeyword        Từ khóa tìm kiếm cho các bài hát đã đăng (có thể null).
-     * @param songPageable       Phân trang cho danh sách bài hát đã đăng.
-     * @return MyLibraryDto chứa hai danh sách đã được phân trang.
-     */
     public MyLibraryDto getMyLibrary(
             String username,
             SongSubmission.SubmissionStatus submissionStatus,
@@ -43,7 +33,7 @@ public class CreatorService {
         );
 
         // 2. Lấy danh sách các bài hát đã được đăng (approved songs)
-        PagedResponse<SongDto> approvedSongs = songService.getMyApprovedSongs(
+        PagedResponse<SongDto> approvedSongs = songService.getMyLibrary(
                 username,
                 songKeyword,
                 songPageable

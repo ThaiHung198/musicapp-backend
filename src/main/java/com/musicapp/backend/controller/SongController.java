@@ -215,30 +215,17 @@ public class SongController {
         return ResponseEntity.ok(BaseResponse.success("Song rejected successfully", song));
     }
 
-    @GetMapping("/my/approved")
+    // THÊM ENDPOINT MỚI
+    @GetMapping("/my-library")
     @PreAuthorize("hasRole('CREATOR')")
-    public ResponseEntity<PagedResponse<SongDto>> getMyApprovedSongs(
+    public ResponseEntity<BaseResponse<PagedResponse<SongDto>>> getMyLibrary(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String name,
             Authentication authentication) {
-
         String username = authentication.getName();
-        Pageable pageable = PageRequest.of(page, size);
-
-        PagedResponse<SongDto> response = songService.getMyApprovedSongs(username, name, pageable);
-
-        return ResponseEntity.ok(response);
-    }
-
-    @GetMapping("/my/{id}")
-    @PreAuthorize("hasRole('CREATOR')")
-    public ResponseEntity<BaseResponse<SongDto>> getMyApprovedSongDetails(
-            @PathVariable Long id,
-            Authentication authentication) {
-
-        String username = authentication.getName();
-        SongDto songDto = songService.getMyApprovedSongDetails(id, username);
-        return ResponseEntity.ok(BaseResponse.success("Approved song details retrieved successfully", songDto));
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        PagedResponse<SongDto> response = songService.getMyLibrary(username, name, pageable);
+        return ResponseEntity.ok(BaseResponse.success(response));
     }
 }

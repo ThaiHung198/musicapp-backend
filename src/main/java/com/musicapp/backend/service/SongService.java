@@ -347,25 +347,8 @@ public class SongService {
                 .anyMatch(grantedAuthority -> grantedAuthority.getAuthority().equals("ROLE_ADMIN"));
     }
 
-    public SongDto getMyApprovedSongDetails(Long songId, String username) {
-        User currentUser = userRepository.findByEmail(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
-
-        Song song = songRepository.findByIdAndStatusWithDetails(songId, Song.SongStatus.APPROVED)
-                .orElseThrow(() -> new ResourceNotFoundException("Approved song not found with id: " + songId));
-
-        boolean isAdmin = currentUser.getRoles().stream()
-                .anyMatch(role -> role.getName().equals("ROLE_ADMIN"));
-        boolean isCreator = song.getCreator().getId().equals(currentUser.getId());
-
-        if (!isCreator && !isAdmin) {
-            throw new UnauthorizedException("You do not have permission to view details for this song.");
-        }
-
-        return songMapper.toDto(song, currentUser);
-    }
-
-    public PagedResponse<SongDto> getMyApprovedSongs(String username, String keyword, Pageable pageable) {
+    // THÊM PHƯƠNG THỨC MỚI
+    public PagedResponse<SongDto> getMyLibrary(String username, String keyword, Pageable pageable) {
         User creator = userRepository.findByEmail(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
 

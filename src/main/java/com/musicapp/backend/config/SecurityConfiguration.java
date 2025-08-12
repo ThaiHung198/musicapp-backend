@@ -41,9 +41,17 @@ public class SecurityConfiguration {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**").permitAll()
+
                         // <<< Cho phép MoMo truy cập IPN endpoint >>>
                         .requestMatchers("/api/v1/transactions/momo-ipn").permitAll()
+                        // CHO PHÉP KHÁCH TRUY CẬP
+                        .requestMatchers(HttpMethod.GET, "/api/v1/songs/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/playlists/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/singers/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/tags/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/likes/**/count").permitAll() // Cho xem số lượt like
 
+                        // Bất kỳ request nào khác đều yêu cầu xác thực
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
