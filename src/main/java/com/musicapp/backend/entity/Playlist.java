@@ -24,6 +24,7 @@ public class Playlist {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // ... các cột khác giữ nguyên ...
     @Column(nullable = false)
     private String name;
 
@@ -41,25 +42,16 @@ public class Playlist {
     // Relationships
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
-    private User creator; // NULL for admin playlists
+    private User creator;
 
     @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-            name = "playlist_songs",
-            joinColumns = @JoinColumn(name = "playlist_id"),
-            inverseJoinColumns = @JoinColumn(name = "song_id")
-    )
+    @JoinTable(name = "playlist_songs", joinColumns = @JoinColumn(name = "playlist_id"), inverseJoinColumns = @JoinColumn(name = "song_id"))
     @Builder.Default
     private Set<Song> songs = new HashSet<>();
 
-    // Giữ nguyên mối quan hệ với Like
-    @OneToMany(mappedBy = "playlist", cascade = CascadeType.ALL, orphanRemoval = true)
-    @Builder.Default
-    private Set<Like> likes = new HashSet<>();
-
     // --- BẮT ĐẦU SỬA LỖI ---
-    // ĐÃ XÓA HOÀN TOÀN MỐI QUAN HỆ VỚI COMMENT ĐỂ TRÁNH LỖI KHÓA NGOẠI
-    // Việc lấy comment sẽ được thực hiện qua CommentRepository
+    // ĐÃ XÓA MỐI QUAN HỆ VỚI LIKE ĐỂ PHÙ HỢP VỚI THIẾT KẾ ĐA HÌNH
+    // Việc lấy/đếm like sẽ được thực hiện qua LikeRepository.
     // --- KẾT THÚC SỬA LỖI ---
 
     public enum PlaylistVisibility {

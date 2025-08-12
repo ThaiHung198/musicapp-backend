@@ -39,21 +39,23 @@ public class SecurityConfiguration {
                 .authorizeHttpRequests(authorize -> authorize
                         // == PHẦN 1: CÁC ENDPOINT CÔNG KHAI TUYỆT ĐỐI (cho mọi method) ==
                         .requestMatchers(
-                                "/uploads/**",
-                                "/api/v1/auth/**",
-                                "/v3/api-docs/**",
-                                "/swagger-ui/**",
-                                "/api/v1/transactions/momo-ipn"
+                                "/uploads/**",                     // Truy cập file tĩnh
+                                "/api/v1/auth/**",                 // Đăng ký, đăng nhập
+                                "/v3/api-docs/**",                 // Swagger UI
+                                "/swagger-ui/**",                  // Swagger UI
+                                "/api/v1/transactions/momo-ipn"    // MoMo IPN Callback
                         ).permitAll()
+                        // Cho phép preflight request của CORS
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // == PHẦN 2: CÁC ENDPOINT GET CÔNG KHAI (chỉ cho method GET) ==
+                        // == PHẦN 2: CÁC ENDPOINT CÔNG KHAI CHỈ DÀNH CHO METHOD GET ==
+                        // Cho phép người dùng chưa đăng nhập có thể xem thông tin
                         .requestMatchers(HttpMethod.GET,
-                                "/api/v1/songs/**",
-                                "/api/v1/playlists/**",
-                                "/api/v1/singers/**",
-                                "/api/v1/tags/**",
-                                "/api/v1/likes/*/*/count"
+                                "/api/v1/songs/**",          // Xem danh sách và chi tiết bài hát
+                                "/api/v1/playlists/**",      // Xem danh sách và chi tiết playlist công khai
+                                "/api/v1/singers/**",        // Xem danh sách và chi tiết ca sĩ
+                                "/api/v1/tags/**",           // Xem danh sách và chi tiết thẻ
+                                "/api/v1/likes/*/*/count"    // Xem số lượt like của cả bài hát và playlist
                         ).permitAll()
 
                         // == PHẦN 3: CÁC ENDPOINT CÒN LẠI YÊU CẦU XÁC THỰC ==
@@ -69,7 +71,6 @@ public class SecurityConfiguration {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // QUAN TRỌNG: Sửa lại danh sách origins cho phù hợp với môi trường của bạn
         configuration.setAllowedOrigins(List.of("http://localhost:3000", "http://127.0.0.1:3000"));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));

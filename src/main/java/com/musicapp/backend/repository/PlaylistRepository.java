@@ -16,13 +16,12 @@ import java.util.List;
 public interface PlaylistRepository extends JpaRepository<Playlist, Long> {
 
     // --- BẮT ĐẦU SỬA LỖI ---
-    // Đã xóa "CAST(SIZE(p.comments) AS long)" khỏi câu truy vấn
-    // vì p.comments không còn là một collection được map bởi JPA.
+    // Đã xóa "CAST(SIZE(p.likes) AS long)" và "CAST(SIZE(p.comments) AS long)" khỏi câu truy vấn
+    // vì các thuộc tính này không còn được map trong Entity nữa.
     @Query("SELECT new com.musicapp.backend.dto.playlist.PlaylistDto(" +
             "p.id, p.name, p.thumbnailPath, p.visibility, p.createdAt, " +
             "p.creator.id, " +
-            "CAST(SIZE(p.songs) AS long), " +
-            "CAST(SIZE(p.likes) AS long)) " +
+            "CAST(SIZE(p.songs) AS long)) " + // Chỉ còn lại songCount
             "FROM Playlist p WHERE p.creator = :creator ORDER BY p.createdAt DESC")
     List<PlaylistDto> findPlaylistsByCreator(@Param("creator") User creator);
     // --- KẾT THÚC SỬA LỖI ---
@@ -40,8 +39,9 @@ public interface PlaylistRepository extends JpaRepository<Playlist, Long> {
             "LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')) ORDER BY p.createdAt DESC")
     Page<Playlist> searchPublicPlaylists(@Param("keyword") String keyword, Pageable pageable);
 
-    @Query("SELECT p FROM Playlist p WHERE p.visibility = 'PUBLIC' ORDER BY SIZE(p.likes) DESC")
-    List<Playlist> findMostLikedPlaylists(Pageable pageable);
+    // --- BẮT ĐẦU SỬA LỖI ---
+    // Đã xóa phương thức findMostLikedPlaylists vì Playlist entity không còn thuộc tính 'likes' nữa.
+    // --- KẾT THÚC SỬA LỖI ---
 
     @Query("SELECT p FROM Playlist p WHERE p.visibility = 'PUBLIC' ORDER BY p.createdAt DESC")
     List<Playlist> findRecentlyCreatedPublicPlaylists(Pageable pageable);
