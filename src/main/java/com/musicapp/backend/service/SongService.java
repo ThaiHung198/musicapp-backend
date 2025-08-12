@@ -39,6 +39,16 @@ public class SongService {
     private final SongMapper songMapper;
     private final FileStorageService fileStorageService;
 
+    public List<SongDto> searchApprovedSongsForPlaylist(String keyword, User currentUser) {
+        Pageable pageable = PageRequest.of(0, 10);
+        return songRepository.findApprovedSongsForPlaylist(keyword, pageable)
+                .stream()
+                .map(song -> songMapper.toDto(song, currentUser))
+                .collect(Collectors.toList());
+    }
+
+    // ... các phương thức khác giữ nguyên
+
     public Page<SongDto> getAllSongsForAdmin(String keyword, Pageable pageable, User admin) {
         Page<Song> songPage;
         if (keyword != null && !keyword.trim().isEmpty()) {
@@ -347,7 +357,6 @@ public class SongService {
                 .anyMatch(grantedAuthority -> grantedAuthority.getAuthority().equals("ROLE_ADMIN"));
     }
 
-    // THÊM PHƯƠNG THỨC MỚI
     public PagedResponse<SongDto> getMyLibrary(String username, String keyword, Pageable pageable) {
         User creator = userRepository.findByEmail(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));

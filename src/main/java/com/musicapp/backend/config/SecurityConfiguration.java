@@ -1,4 +1,3 @@
-// src/main/java/com/musicapp/backend/config/SecurityConfiguration.java
 package com.musicapp.backend.config;
 
 import com.musicapp.backend.security.JwtAuthenticationFilter;
@@ -37,20 +36,23 @@ public class SecurityConfiguration {
                 .cors(withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/uploads/**").permitAll()
+                        // Các endpoint công khai, không cần xác thực
+                        .requestMatchers(
+                                "/uploads/**",
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/api/v1/auth/**",
+                                "/api/v1/transactions/momo-ipn"
+                        ).permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/api/v1/auth/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/playlists/**", "/api/v1/songs/**").permitAll()
-                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**").permitAll()
 
-                        // <<< Cho phép MoMo truy cập IPN endpoint >>>
-                        .requestMatchers("/api/v1/transactions/momo-ipn").permitAll()
-                        // CHO PHÉP KHÁCH TRUY CẬP
-                        .requestMatchers(HttpMethod.GET, "/api/v1/songs/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/playlists/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/singers/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/tags/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/likes/**/count").permitAll() // Cho xem số lượt like
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/v1/songs/**",
+                                "/api/v1/playlists/**",
+                                "/api/v1/singers/**",
+                                "/api/v1/tags/**",
+                                "/api/v1/likes/*/*/count"
+                        ).permitAll()
 
                         // Bất kỳ request nào khác đều yêu cầu xác thực
                         .anyRequest().authenticated()
