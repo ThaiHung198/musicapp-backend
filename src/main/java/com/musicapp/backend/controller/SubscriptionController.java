@@ -1,11 +1,9 @@
 package com.musicapp.backend.controller;
 
-import com.musicapp.backend.dto.PagedResponse;
 import com.musicapp.backend.dto.BaseResponse;
-import com.musicapp.backend.dto.subscription.CreateSubscriptionRequest;
+import com.musicapp.backend.dto.PagedResponse;
 import com.musicapp.backend.dto.subscription.SubscriptionDto;
 import com.musicapp.backend.service.SubscriptionService;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -19,61 +17,58 @@ import java.time.LocalDateTime;
 
 @RestController
 @RequestMapping("/api/v1/subscriptions")
-@RequiredArgsConstructor // Sử dụng @RequiredArgsConstructor thay cho @Autowired
+@RequiredArgsConstructor
 public class SubscriptionController {
 
     private final SubscriptionService subscriptionService;
 
     /**
      * Lấy danh sách các gói có sẵn để người dùng mua.
-     * Endpoint này thay thế cho getSubscriptionTiers() cũ.
+     * Endpoint này là bước đầu tiên trong luồng nâng cấp Premium.
      */
     @GetMapping("/packages")
     public ResponseEntity<BaseResponse<Object>> getAvailablePackages() {
         Object packages = subscriptionService.getAvailablePackages();
-        return ResponseEntity.ok(BaseResponse.success("Available packages retrieved", packages));
+        return ResponseEntity.ok(BaseResponse.success("Lấy danh sách gói thành công.", packages));
     }
 
     /**
-     * Người dùng tạo một gói đăng ký mới bằng cách gửi packageId.
+     * <<< ĐÃ XÓA ENDPOINT POST / (phương thức createSubscription) >>>
+     *
+     * Lý do: Việc "tạo" một gói đăng ký giờ đây là kết quả của một giao dịch thành công.
+     * Luồng đúng sẽ là:
+     * 1. Frontend gọi GET /api/v1/subscriptions/packages để hiển thị các gói.
+     * 2. Người dùng chọn gói, frontend gọi POST /api/v1/transactions/create-payment.
+     * 3. Backend xử lý thanh toán và tự động tạo subscription sau khi thanh toán thành công.
+     *
+     * Giữ lại endpoint này sẽ gây ra lỗi và nhầm lẫn trong logic.
      */
-    @PostMapping
-    @PreAuthorize("hasAnyRole('USER', 'CREATOR', 'ADMIN')")
-    public ResponseEntity<BaseResponse<SubscriptionDto>> createSubscription(
-            @Valid @RequestBody CreateSubscriptionRequest request,
-            Authentication authentication) {
-        String username = authentication.getName();
-        SubscriptionDto subscription = subscriptionService.createSubscription(request, username);
-        return ResponseEntity.ok(BaseResponse.success("Subscription created successfully", subscription));
-    }
 
     /**
      * Lấy gói đăng ký đang hoạt động của người dùng hiện tại.
      */
     @GetMapping("/my")
-    @PreAuthorize("hasAnyRole('USER', 'CREATOR', 'ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse<SubscriptionDto>> getMySubscription(Authentication authentication) {
         String username = authentication.getName();
         SubscriptionDto subscription = subscriptionService.getUserActiveSubscription(username);
-        return ResponseEntity.ok(BaseResponse.success("Subscription retrieved successfully", subscription));
+        return ResponseEntity.ok(BaseResponse.success("Lấy thông tin gói đang hoạt động thành công.", subscription));
     }
 
     /**
      * Người dùng hủy gói đăng ký đang hoạt động.
      */
     @PostMapping("/cancel")
-    @PreAuthorize("hasAnyRole('USER', 'CREATOR', 'ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse<SubscriptionDto>> cancelSubscription(Authentication authentication) {
         String username = authentication.getName();
         SubscriptionDto subscription = subscriptionService.cancelSubscription(username);
-        return ResponseEntity.ok(BaseResponse.success("Subscription cancelled successfully", subscription));
+        return ResponseEntity.ok(BaseResponse.success("Hủy gói đăng ký thành công.", subscription));
     }
 
     // --- CÁC ENDPOINT DÀNH CHO ADMIN ---
-
     /**
      * [ADMIN] Lấy tất cả các gói đăng ký trong hệ thống.
-     * Đã loại bỏ tham số 'tier' không còn hợp lệ.
      */
     @GetMapping("/admin/all")
     @PreAuthorize("hasRole('ADMIN')")
@@ -107,12 +102,11 @@ public class SubscriptionController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BaseResponse<Object>> getSubscriptionStats() {
         Object stats = subscriptionService.getSubscriptionStats();
-        return ResponseEntity.ok(BaseResponse.success("Subscription statistics retrieved", stats));
+        return ResponseEntity.ok(BaseResponse.success("Lấy thống kê thành công.", stats));
     }
 
     /**
-     * [ADMIN] Lấy doanh thu (cần triển khai logic chi tiết trong service).
-     * Cập nhật để nhận kiểu dữ liệu LocalDateTime.
+     * [ADMIN] Lấy doanh thu.
      */
     @GetMapping("/admin/revenue")
     @PreAuthorize("hasRole('ADMIN')")
@@ -120,6 +114,6 @@ public class SubscriptionController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
         Object revenue = subscriptionService.getSubscriptionRevenue(startDate, endDate);
-        return ResponseEntity.ok(BaseResponse.success("Subscription revenue retrieved", revenue));
+        return ResponseEntity.ok(BaseResponse.success("Lấy doanh thu thành công.", revenue));
     }
 }

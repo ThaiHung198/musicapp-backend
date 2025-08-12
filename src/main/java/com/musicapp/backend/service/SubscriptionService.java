@@ -1,8 +1,8 @@
 package com.musicapp.backend.service;
 
 import com.musicapp.backend.dto.PagedResponse;
-import com.musicapp.backend.dto.subscription.CreateSubscriptionRequest;
 import com.musicapp.backend.dto.subscription.SubscriptionDto;
+import com.musicapp.backend.entity.Transaction; // <<< ĐÃ THÊM IMPORT
 import com.musicapp.backend.entity.User;
 import com.musicapp.backend.entity.UserSubscription;
 import com.musicapp.backend.exception.BadRequestException;
@@ -29,127 +29,99 @@ public class SubscriptionService {
 
     private final UserSubscriptionRepository subscriptionRepository;
     private final SubscriptionMapper subscriptionMapper;
-    private final TransactionService transactionService; // Cần để ghi lại giao dịch
     private final UserRepository userRepository;
 
-    /**
-     * Tạo một gói đăng ký mới cho người dùng dựa trên packageId.
-     * Logic đã được viết lại hoàn toàn để phù hợp với backlog mới.
-     */
     @Transactional
-    public SubscriptionDto createSubscription(CreateSubscriptionRequest request, String username) {
-        User user = userRepository.findByEmail(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
+    public void activateSubscriptionFromTransaction(Transaction transaction) {
+        if (transaction.getStatus() != Transaction.TransactionStatus.SUCCESS) {
+            throw new IllegalStateException("Chỉ có thể kích hoạt gói từ giao dịch thành công.");
+        }
+        User user = transaction.getUser();
 
-        // Kiểm tra xem người dùng đã có gói active chưa
         if (hasActivePremiumSubscription(user.getId())) {
-            throw new BadRequestException("User already has an active subscription.");
+            return;
         }
 
-        int durationInDays;
-        BigDecimal price;
-        String packageName;
-
-        // Xác định thông tin gói dựa trên packageId
-        if ("monthly_premium".equals(request.getPackageId())) {
-            durationInDays = 30;
-            price = new BigDecimal("50000.00"); // Ví dụ giá gói tháng
-            packageName = "Gói Premium 1 Tháng";
-        } else if ("yearly_premium".equals(request.getPackageId())) {
-            durationInDays = 365;
-            price = new BigDecimal("500000.00"); // Ví dụ giá gói năm
-            packageName = "Gói Premium 1 Năm";
-        } else {
-            throw new BadRequestException("Invalid package identifier: " + request.getPackageId());
-        }
-
-        LocalDateTime startDate = LocalDateTime.now();
-        LocalDateTime endDate = startDate.plusDays(durationInDays);
+        Map<String, Object> packageInfo = getPackageInfoByPackageName(transaction.getPackageName());
+        int durationInDays = (int) packageInfo.get("durationDays");
 
         UserSubscription subscription = UserSubscription.builder()
                 .user(user)
-                .startDate(startDate)
-                .endDate(endDate)
-                .price(price) // Lưu lại giá tại thời điểm mua
+                .startDate(LocalDateTime.now())
+                .endDate(LocalDateTime.now().plusDays(durationInDays))
+                .price(transaction.getAmount())
                 .status(UserSubscription.SubscriptionStatus.ACTIVE)
-                .autoRenewal(false) // Mặc định không tự động gia hạn
+                .autoRenewal(false)
                 .build();
-
         UserSubscription savedSubscription = subscriptionRepository.save(subscription);
 
-        // Giả sử thanh toán thành công và tạo một bản ghi giao dịch.
-        // Chúng ta có thể cần tạo phương thức này trong TransactionService.
-        transactionService.createTransactionForSubscription(user, savedSubscription, packageName, "MOMO");
-
-        return subscriptionMapper.toDto(savedSubscription);
+        transaction.setSubscription(savedSubscription);
     }
 
-    /**
-     * Kiểm tra xem người dùng có gói Premium đang hoạt động hay không.
-     * Logic đã được đơn giản hóa.
-     */
     public boolean hasActivePremiumSubscription(Long userId) {
         return subscriptionRepository.findActiveSubscription(userId, LocalDateTime.now()).isPresent();
     }
 
-    /**
-     * Lấy gói đăng ký đang hoạt động của người dùng.
-     */
     public SubscriptionDto getUserActiveSubscription(String username) {
         User user = userRepository.findByEmail(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
-
         Optional<UserSubscription> subscription = subscriptionRepository.findActiveSubscription(user.getId(), LocalDateTime.now());
         return subscription.map(subscriptionMapper::toDto).orElse(null);
     }
 
-    /**
-     * Hủy một gói đăng ký đang hoạt động.
-     */
     @Transactional
     public SubscriptionDto cancelSubscription(String username) {
         User user = userRepository.findByEmail(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
-
         UserSubscription activeSubscription = subscriptionRepository.findActiveSubscription(user.getId(), LocalDateTime.now())
                 .orElseThrow(() -> new BadRequestException("No active subscription found to cancel"));
-
         activeSubscription.setStatus(UserSubscription.SubscriptionStatus.CANCELLED);
         activeSubscription.setCancelledAt(LocalDateTime.now());
         activeSubscription.setAutoRenewal(false);
-
         UserSubscription updatedSubscription = subscriptionRepository.save(activeSubscription);
         return subscriptionMapper.toDto(updatedSubscription);
     }
 
-    /**
-     * Lấy các gói có sẵn để hiển thị cho người dùng.
-     * Phương thức này thay thế cho getSubscriptionTiers() cũ.
-     */
-    public Object getAvailablePackages() {
+    public Map<String, Object> getAvailablePackages() {
         return Map.of(
-                "monthly_premium", Map.of(
-                        "name", "Gói Premium 1 Tháng",
-                        "price", new BigDecimal("50000.00"),
-                        "durationDays", 30,
-                        "features", List.of("Nghe nhạc không quảng cáo", "Chất lượng cao", "Truy cập toàn bộ bài hát")
-                ),
-                "yearly_premium", Map.of(
-                        "name", "Gói Premium 1 Năm",
-                        "price", new BigDecimal("500000.00"),
-                        "durationDays", 365,
-                        "features", List.of("Tất cả quyền lợi của gói Tháng", "Tiết kiệm hơn 15%")
-                )
+                "monthly_premium", getPackageInfo("monthly_premium"),
+                "yearly_premium", getPackageInfo("yearly_premium")
         );
     }
 
-    // Các phương thức dành cho Admin hoặc Scheduler có thể được giữ lại và điều chỉnh nếu cần.
-    // Ví dụ: processExpiredSubscriptions() trong SubscriptionSchedulerService vẫn hoạt động tốt.
+    public Map<String, Object> getPackageInfo(String packageId) {
+        if ("monthly_premium".equals(packageId)) {
+            return Map.of(
+                    "name", "Gói Premium 1 Tháng",
+                    "price", new BigDecimal("49000.00"),
+                    "durationDays", 30,
+                    "features", List.of("Nghe nhạc không quảng cáo", "Chất lượng cao")
+            );
+        } else if ("yearly_premium".equals(packageId)) {
+            return Map.of(
+                    "name", "Gói Premium 1 Năm",
+                    "price", new BigDecimal("499000.00"),
+                    "durationDays", 365,
+                    "features", List.of("Tất cả quyền lợi của gói Tháng", "Tiết kiệm hơn")
+            );
+        } else {
+            throw new BadRequestException("Mã gói không hợp lệ: " + packageId);
+        }
+    }
 
-    /**
-     * [ADMIN] Lấy danh sách tất cả các gói đăng ký trong hệ thống, có phân trang.
-     * Có thể lọc theo trạng thái active.
-     */
+    private Map<String, Object> getPackageInfoByPackageName(String packageName) {
+        if ("Gói Premium 1 Tháng".equals(packageName)) {
+            return getPackageInfo("monthly_premium");
+        } else if ("Gói Premium 1 Năm".equals(packageName)) {
+            return getPackageInfo("yearly_premium");
+        } else {
+            throw new BadRequestException("Tên gói không hợp lệ: " + packageName);
+        }
+    }
+
+    // <<< ĐÃ XÓA KHỐI CODE BỊ THỪA GÂY LỖI CÚ PHÁP >>>
+
+    // --- Các phương thức Admin và helper giữ nguyên ---
     public PagedResponse<SubscriptionDto> getAllSubscriptions(Pageable pageable, Boolean isActive) {
         Page<UserSubscription> subscriptions;
         if (isActive != null) {
@@ -166,9 +138,6 @@ public class SubscriptionService {
         return createPagedResponse(subscriptions.map(subscriptionMapper::toDto));
     }
 
-    /**
-     * [ADMIN] Lấy lịch sử đăng ký của một người dùng cụ thể.
-     */
     public PagedResponse<SubscriptionDto> getUserSubscriptionHistory(Long userId, Pageable pageable) {
         if (!userRepository.existsById(userId)) {
             throw new ResourceNotFoundException("User not found with id: " + userId);
@@ -178,14 +147,9 @@ public class SubscriptionService {
         return createPagedResponse(subscriptions.map(subscriptionMapper::toDto));
     }
 
-    /**
-     * [ADMIN] Lấy các số liệu thống kê về các gói đăng ký.
-     * Đã cập nhật để không còn thống kê theo cấp độ.
-     */
     public Object getSubscriptionStats() {
         long totalSubscriptions = subscriptionRepository.count();
         long activeSubscriptions = subscriptionRepository.countActiveSubscriptions(LocalDateTime.now());
-
         return Map.of(
                 "totalSubscriptions", totalSubscriptions,
                 "activeSubscriptions", activeSubscriptions,
@@ -193,22 +157,13 @@ public class SubscriptionService {
         );
     }
 
-    /**
-     * [ADMIN] Lấy doanh thu từ các giao dịch trong một khoảng thời gian.
-     */
     public Object getSubscriptionRevenue(LocalDateTime startDate, LocalDateTime endDate) {
-        // Logic này cần được triển khai trong TransactionRepository để tính tổng doanh thu
-        // Ví dụ:
-        // BigDecimal totalRevenue = transactionRepository.sumRevenueBetweenDates(startDate, endDate);
-
-        // Trả về dữ liệu giả để minh họa
         return Map.of(
                 "totalRevenue", "Chưa được triển khai",
                 "period", Map.of("start", startDate, "end", endDate)
         );
     }
 
-    // Helper method để tạo PagedResponse, bạn có thể đặt nó ở cuối class
     private <T> PagedResponse<T> createPagedResponse(Page<T> page) {
         return PagedResponse.of(page.getContent(), page);
     }
