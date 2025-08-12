@@ -3,6 +3,7 @@ package com.musicapp.backend.repository;
 import com.musicapp.backend.entity.Tag;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -20,4 +21,8 @@ public interface TagRepository extends JpaRepository<Tag, Long> {
     
     @Query("SELECT t FROM Tag t WHERE t.name LIKE %:keyword% ORDER BY t.name ASC")
     List<Tag> findByNameContainingIgnoreCaseOrderByNameAsc(String keyword);
+
+    //Đếm số bài hát sử dụng tag
+    @Query("SELECT COUNT(s) FROM Song s JOIN s.tags t WHERE t.id = :tagId")
+    long countSongsByTagId(@Param("tagId") Long tagId);
 }
