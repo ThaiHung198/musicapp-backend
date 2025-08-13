@@ -14,8 +14,12 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.roles WHERE u.email = :email")
     Optional<User> findByEmailWithRoles(@Param("email") String email);
 
-    Page<User> findByDisplayNameContainingIgnoreCaseOrEmailContainingIgnoreCase(String displayName, String email, Pageable pageable);
-
+    @Query("SELECT u FROM User u WHERE " +
+            "EXISTS (SELECT r FROM u.roles r WHERE r.name = 'ROLE_USER') AND " +
+            "NOT EXISTS (SELECT r FROM u.roles r WHERE r.name IN ('ROLE_ADMIN', 'ROLE_CREATOR')) AND " +
+            "(LOWER(u.displayName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+            "LOWER(u.email) LIKE LOWER(CONCAT('%', :keyword, '%')))")
+    Page<User> findAppUsers(@Param("keyword") String keyword, Pageable pageable);
 
     Optional<User> findByEmail(String email);
     Optional<User> findByPhoneNumber(String phoneNumber);

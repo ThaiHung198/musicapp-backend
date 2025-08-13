@@ -41,13 +41,10 @@ public class UserService {
 
     public PagedResponse<AdminUserViewDto> getAllUsersForAdmin(String search, Pageable pageable) {
         Page<User> userPage;
+        String keyword = (search == null) ? "" : search; // Đảm bảo keyword không bị null
 
-        // 1. Lấy danh sách người dùng từ DB (có tìm kiếm)
-        if (StringUtils.hasText(search)) {
-            userPage = userRepository.findByDisplayNameContainingIgnoreCaseOrEmailContainingIgnoreCase(search, search, pageable);
-        } else {
-            userPage = userRepository.findAll(pageable);
-        }
+        // Gọi phương thức mới để chỉ lấy user thường
+        userPage = userRepository.findAppUsers(keyword, pageable);
 
         // 2. Chuyển đổi Page<User> thành Page<AdminUserViewDto>
         Page<AdminUserViewDto> dtoPage = userPage.map(user -> {
