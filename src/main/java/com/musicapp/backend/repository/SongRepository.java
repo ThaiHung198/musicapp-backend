@@ -93,6 +93,12 @@ public interface SongRepository extends JpaRepository<Song, Long> {
 
     Page<Song> findAllByOrderByCreatedAtDesc(Pageable pageable);
 
-//     @Query("SELECT s FROM Song s WHERE s.status = 'APPROVED' AND LOWER(s.title) LIKE LOWER(CONCAT('%', :keyword, '%'))")
-//     List<Song> findApprovedSongsForPlaylist(@Param("keyword") String keyword, Pageable pageable);
+    @Query("SELECT s FROM Song s JOIN s.playlists p " +
+            "WHERE p.id = :playlistId AND s.status = 'APPROVED' " +
+            "AND s.title LIKE CONCAT('%', :keyword, '%')") // <-- ĐÃ BỎ LOWER()
+    Page<Song> findApprovedSongsForPlaylist(
+            @Param("playlistId") Long playlistId,
+            @Param("keyword") String keyword,
+            Pageable pageable
+    );
 }
