@@ -41,18 +41,20 @@ public class SongService {
     private final SongMapper songMapper;
     private final FileStorageService fileStorageService;
     private final LikeRepository likeRepository; // THÊM DEPENDENCY NÀY
+    private final PlaylistRepository playlistRepository;
 
-    // ... các phương thức khác không thay đổi ...
 
-    public List<SongDto> searchApprovedSongsForPlaylist(String keyword, User currentUser) {
-        Pageable pageable = PageRequest.of(0, 10);
-        return songRepository.findApprovedSongsForPlaylist(keyword, pageable)
-                .stream()
+    public List<SongDto> searchApprovedSongsForPlaylist(Long playlistId, String keyword, User currentUser) {
+        if (!playlistRepository.existsById(playlistId)) {
+            throw new ResourceNotFoundException("Không tìm thấy playlist với ID: " + playlistId);
+        }
+        Pageable pageable = PageRequest.of(0, 20);
+        Page<Song> songPage = songRepository.findApprovedSongsForPlaylist(playlistId, keyword, pageable);
+
+        return songPage.stream()
                 .map(song -> songMapper.toDto(song, currentUser))
                 .collect(Collectors.toList());
     }
-
-    // ... các phương thức khác giữ nguyên
 
     public Page<SongDto> getAllSongsForAdmin(String keyword, Pageable pageable, User admin) {
         Page<Song> songPage;
