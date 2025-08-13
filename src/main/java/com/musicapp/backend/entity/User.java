@@ -16,6 +16,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Set;
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Getter
@@ -84,13 +85,14 @@ public class User implements UserDetails {
     @OneToMany(mappedBy = "creator", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Set<Playlist> createdPlaylists;
 
-    // SỬA LỖI TẠI ĐÂY: "mappedby" -> "mappedBy"
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<Like> likes;
 
-    // SỬA LỖI TẠI ĐÂY: "mappedby" -> "mappedBy"
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<Comment> comments;
+    private List<SongComment> songComments;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PlaylistComment> playlistComments;
 
     @OneToMany(mappedBy = "creator", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Set<SongSubmission> songSubmissions;

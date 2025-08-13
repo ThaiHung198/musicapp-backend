@@ -22,8 +22,6 @@ public class CommentController {
 
     private final CommentService commentService;
 
-    // == ENDPOINTS CHO BÀI HÁT (SONGS) ==
-
     @PostMapping("/songs/{songId}/comments")
     public ResponseEntity<BaseResponse<CommentDto>> createCommentForSong(
             @PathVariable Long songId,
@@ -43,8 +41,6 @@ public class CommentController {
         PagedResponse<CommentDto> comments = commentService.getCommentsForSong(songId, pageable);
         return ResponseEntity.ok(new BaseResponse<>(true, "Lấy danh sách bình luận thành công.", comments));
     }
-
-    // == ENDPOINTS CHO DANH SÁCH PHÁT (PLAYLISTS) ==
 
     @PostMapping("/playlists/{playlistId}/comments")
     public ResponseEntity<BaseResponse<CommentDto>> createCommentForPlaylist(
@@ -66,14 +62,19 @@ public class CommentController {
         return ResponseEntity.ok(new BaseResponse<>(true, "Lấy danh sách bình luận thành công.", comments));
     }
 
-    // == ENDPOINT ĐỂ XÓA BÌNH LUẬN ==
-
-    @DeleteMapping("/comments/{commentId}")
-    public ResponseEntity<BaseResponse<Object>> deleteComment(
+    @DeleteMapping("/songs/comments/{commentId}")
+    public ResponseEntity<BaseResponse<Object>> deleteSongComment(
             @PathVariable Long commentId,
             @AuthenticationPrincipal User currentUser) {
+        commentService.deleteSongComment(commentId, currentUser);
+        return ResponseEntity.ok(new BaseResponse<>(true, "Đã xóa bình luận thành công.", null));
+    }
 
-        commentService.deleteComment(commentId, currentUser);
+    @DeleteMapping("/playlists/comments/{commentId}")
+    public ResponseEntity<BaseResponse<Object>> deletePlaylistComment(
+            @PathVariable Long commentId,
+            @AuthenticationPrincipal User currentUser) {
+        commentService.deletePlaylistComment(commentId, currentUser);
         return ResponseEntity.ok(new BaseResponse<>(true, "Đã xóa bình luận thành công.", null));
     }
 }

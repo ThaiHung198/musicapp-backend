@@ -10,6 +10,7 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.List;
 
 @Getter
 @Setter
@@ -47,6 +48,9 @@ public class Playlist {
     @JoinTable(name = "playlist_songs", joinColumns = @JoinColumn(name = "playlist_id"), inverseJoinColumns = @JoinColumn(name = "song_id"))
     @Builder.Default
     private Set<Song> songs = new HashSet<>();
+
+    @OneToMany(mappedBy = "playlist", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PlaylistComment> comments;
 
     public enum PlaylistVisibility {
         PRIVATE, PUBLIC, HIDDEN;

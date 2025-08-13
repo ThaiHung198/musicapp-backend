@@ -4,8 +4,8 @@ import com.musicapp.backend.dto.song.SongDto;
 import com.musicapp.backend.entity.Like;
 import com.musicapp.backend.entity.Song;
 import com.musicapp.backend.entity.User;
-import com.musicapp.backend.repository.CommentRepository;
 import com.musicapp.backend.repository.LikeRepository;
+import com.musicapp.backend.repository.SongCommentRepository;
 import com.musicapp.backend.service.SubscriptionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -19,7 +19,7 @@ public class SongMapper {
     private final SingerMapper singerMapper;
     private final TagMapper tagMapper;
     private final LikeRepository likeRepository;
-    private final CommentRepository commentRepository;
+    private final SongCommentRepository songCommentRepository;
     private final SubscriptionService subscriptionService;
 
     public SongDto toDto(Song song, User currentUser) {
@@ -52,7 +52,7 @@ public class SongMapper {
                                 .map(tagMapper::toDto)
                                 .collect(Collectors.toList()) : null)
                 .likeCount(likeRepository.countByLikeableIdAndLikeableType(song.getId(), Like.LikeableType.SONG))
-                .commentCount(commentRepository.countByCommentableIdAndCommentableType(song.getId(), com.musicapp.backend.entity.Comment.CommentableType.SONG))
+                .commentCount(songCommentRepository.countBySongId(song.getId()))
                 .isLikedByCurrentUser(currentUser != null ?
                         likeRepository.existsByUserIdAndLikeableIdAndLikeableType(
                                 currentUser.getId(), song.getId(), Like.LikeableType.SONG) : false)
