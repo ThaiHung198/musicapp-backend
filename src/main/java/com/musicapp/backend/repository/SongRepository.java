@@ -90,4 +90,6 @@ public interface SongRepository extends JpaRepository<Song, Long> {
     );
 
     long countByCreatorIdAndStatus(Long creatorId, Song.SongStatus status);
+
+    List<Song> findBySingersIdAndStatus(Long singerId, Song.SongStatus status);
 }

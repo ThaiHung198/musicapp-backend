@@ -67,4 +67,5 @@ public interface SingerRepository extends JpaRepository<Singer, Long> {
 
     @Query("SELECT s FROM Singer s WHERE s.name LIKE %:keyword% ORDER BY s.name ASC")
     Page<Singer> findByNameContainingIgnoreCaseOrderByNameAsc(@Param("keyword") String keyword, Pageable pageable);
+
 }
