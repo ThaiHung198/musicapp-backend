@@ -102,4 +102,15 @@ public class PlaylistController {
         PlaylistDto updatedPlaylist = playlistService.removeSongFromPlaylist(playlistId, songId, currentUser);
         return ResponseEntity.ok(BaseResponse.success("Xóa bài hát khỏi playlist thành công!", updatedPlaylist));
     }
+
+    @PatchMapping("/{id}/toggle-visibility")
+    @PreAuthorize("hasAnyRole('CREATOR', 'ADMIN')")
+    public ResponseEntity<BaseResponse<PlaylistDto>> togglePlaylistVisibility(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        PlaylistDto updatedPlaylist = playlistService.togglePlaylistVisibility(id, currentUser);
+        String message = "Trạng thái hiển thị của playlist đã được cập nhật thành " + updatedPlaylist.getVisibility();
+        return ResponseEntity.ok(BaseResponse.success(message, updatedPlaylist));
+    }
 }

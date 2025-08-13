@@ -51,4 +51,5 @@ public interface PlaylistRepository extends JpaRepository<Playlist, Long> {
     @Query("SELECT COUNT(p) FROM Playlist p WHERE p.visibility = 'PUBLIC'")
     long countPublicPlaylists();
 
+    Page<Playlist> findByVisibility(Playlist.PlaylistVisibility visibility, Pageable pageable);
 }
