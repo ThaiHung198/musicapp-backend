@@ -33,6 +33,16 @@ public class SongController {
 
     private final SongService songService;
 
+    @GetMapping("/search-for-playlist")
+    public ResponseEntity<BaseResponse<List<SongDto>>> searchForPlaylist(
+            @RequestParam String keyword,
+            @AuthenticationPrincipal User currentUser) {
+        List<SongDto> songs = songService.searchApprovedSongsForPlaylist(keyword, currentUser);
+        return ResponseEntity.ok(BaseResponse.success(songs));
+    }
+
+    // ... các endpoint khác giữ nguyên
+
     @GetMapping("/admin/all")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BaseResponse<PagedResponse<SongDto>>> getAllSongsForAdmin(
@@ -77,6 +87,16 @@ public class SongController {
     public ResponseEntity<BaseResponse<Void>> incrementListenCount(@PathVariable Long id) {
         songService.incrementListenCount(id);
         return ResponseEntity.ok(BaseResponse.success("Listen count incremented", null));
+    }
+
+    @PostMapping("/{id}/toggle-visibility")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BaseResponse<SongDto>> toggleVisibility(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User admin) {
+        SongDto updatedSong = songService.toggleSongVisibility(id, admin);
+        String message = updatedSong.getStatus().equals("HIDDEN") ? "Ẩn bài hát thành công." : "Hiện bài hát thành công.";
+        return ResponseEntity.ok(BaseResponse.success(message, updatedSong));
     }
 
     @GetMapping("/top")
@@ -215,7 +235,6 @@ public class SongController {
         return ResponseEntity.ok(BaseResponse.success("Song rejected successfully", song));
     }
 
-    // THÊM ENDPOINT MỚI
     @GetMapping("/my-library")
     @PreAuthorize("hasRole('CREATOR')")
     public ResponseEntity<BaseResponse<PagedResponse<SongDto>>> getMyLibrary(

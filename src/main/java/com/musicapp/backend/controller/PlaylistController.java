@@ -3,10 +3,13 @@ package com.musicapp.backend.controller;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.musicapp.backend.dto.BaseResponse;
+import com.musicapp.backend.dto.playlist.AddSongsToPlaylistRequest;
 import com.musicapp.backend.dto.playlist.CreatePlaylistRequest;
 import com.musicapp.backend.dto.playlist.PlaylistDto;
+import com.musicapp.backend.dto.playlist.UpdatePlaylistRequest;
 import com.musicapp.backend.entity.User;
 import com.musicapp.backend.service.PlaylistService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -55,5 +58,48 @@ public class PlaylistController {
         return ResponseEntity.ok(BaseResponse.success("Lấy danh sách playlist thành công!", myPlaylists));
     }
 
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyRole('USER', 'CREATOR', 'ADMIN')")
+    public ResponseEntity<BaseResponse<PlaylistDto>> updatePlaylist(
+            @PathVariable Long id,
+            @RequestPart("request") String requestJson,
+            @RequestPart(value = "thumbnailFile", required = false) MultipartFile thumbnailFile,
+            @AuthenticationPrincipal User currentUser
+    ) throws JsonProcessingException {
+        UpdatePlaylistRequest request = new ObjectMapper().readValue(requestJson, UpdatePlaylistRequest.class);
+        PlaylistDto updatedPlaylist = playlistService.updatePlaylist(id, request, thumbnailFile, currentUser);
+        return ResponseEntity.ok(BaseResponse.success("Cập nhật playlist thành công!", updatedPlaylist));
+    }
 
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('USER', 'CREATOR', 'ADMIN')")
+    public ResponseEntity<BaseResponse<Void>> deletePlaylist(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        playlistService.deletePlaylist(id, currentUser);
+        return ResponseEntity.ok(BaseResponse.success("Xóa playlist thành công!", null));
+    }
+
+    @PostMapping("/{id}/songs")
+    @PreAuthorize("hasAnyRole('USER', 'CREATOR', 'ADMIN')")
+    public ResponseEntity<BaseResponse<PlaylistDto>> addSongsToPlaylist(
+            @PathVariable Long id,
+            @Valid @RequestBody AddSongsToPlaylistRequest request,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        PlaylistDto updatedPlaylist = playlistService.addSongsToPlaylist(id, request, currentUser);
+        return ResponseEntity.ok(BaseResponse.success("Thêm bài hát vào playlist thành công!", updatedPlaylist));
+    }
+
+    @DeleteMapping("/{playlistId}/songs/{songId}")
+    @PreAuthorize("hasAnyRole('USER', 'CREATOR', 'ADMIN')")
+    public ResponseEntity<BaseResponse<PlaylistDto>> removeSongFromPlaylist(
+            @PathVariable Long playlistId,
+            @PathVariable Long songId,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        PlaylistDto updatedPlaylist = playlistService.removeSongFromPlaylist(playlistId, songId, currentUser);
+        return ResponseEntity.ok(BaseResponse.success("Xóa bài hát khỏi playlist thành công!", updatedPlaylist));
+    }
 }
