@@ -37,7 +37,7 @@ public class SongController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse<List<SongDto>>> getAllSongsForPlaylist(@AuthenticationPrincipal User currentUser) {
         List<SongDto> songs = songService.getAllSongsForPlaylist(currentUser);
-        return ResponseEntity.ok(BaseResponse.success("Lấy danh sách bài hát thành công.", songs));
+        return ResponseEntity.ok(BaseResponse.success(songs));
     }
 
     @GetMapping("/playlist/{playlistId}/search")
