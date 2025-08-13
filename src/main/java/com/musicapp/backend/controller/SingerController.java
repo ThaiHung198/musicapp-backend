@@ -4,13 +4,13 @@ import com.musicapp.backend.dto.BaseResponse;
 import com.musicapp.backend.dto.PagedResponse;
 import com.musicapp.backend.dto.singer.AdminCreateSingerRequest;
 import com.musicapp.backend.dto.singer.CreateSingerRequest;
+import com.musicapp.backend.dto.singer.SingerDetailDto;
 import com.musicapp.backend.dto.singer.SingerDto;
 import com.musicapp.backend.entity.User;
 import com.musicapp.backend.service.SingerService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -88,8 +88,8 @@ public class SingerController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<BaseResponse<SingerDto>> getSingerById(@PathVariable Long id) {
-        SingerDto singer = singerService.getSingerById(id);
+    public ResponseEntity<BaseResponse<SingerDetailDto>> getSingerById(@PathVariable Long id) {
+        SingerDetailDto singer = singerService.getSingerDetailById(id);
         return ResponseEntity.ok(BaseResponse.success(singer));
     }
 
