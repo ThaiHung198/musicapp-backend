@@ -1,5 +1,7 @@
 package com.musicapp.backend.service;
 
+import com.musicapp.backend.dto.PagedResponse;
+import com.musicapp.backend.dto.user.AdminUserViewDto;
 import com.musicapp.backend.dto.user.ChangePasswordRequest;
 import com.musicapp.backend.dto.user.UpdateProfileRequest;
 import com.musicapp.backend.dto.user.UserProfileDto;
@@ -9,6 +11,8 @@ import com.musicapp.backend.exception.ResourceNotFoundException;
 import com.musicapp.backend.mapper.UserMapper;
 import com.musicapp.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +29,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
+    private final SubscriptionService subscriptionService;
     private static final List<String> VALID_GENDERS = Arrays.asList("Male", "Female", "Other");
 
     @Transactional(readOnly = true)
@@ -32,6 +37,27 @@ public class UserService {
         User user = userRepository.findByEmail(currentUser.getEmail())
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng."));
         return userMapper.toUserProfileDto(user);
+    }
+
+    public PagedResponse<AdminUserViewDto> getAllUsersForAdmin(String search, Pageable pageable) {
+        Page<User> userPage;
+        String keyword = (search == null) ? "" : search; // Đảm bảo keyword không bị null
+
+        // Gọi phương thức mới để chỉ lấy user thường
+        userPage = userRepository.findAppUsers(keyword, pageable);
+
+        // 2. Chuyển đổi Page<User> thành Page<AdminUserViewDto>
+        Page<AdminUserViewDto> dtoPage = userPage.map(user -> {
+            // Xác định trạng thái cho mỗi user
+            boolean isPremium = subscriptionService.hasActivePremiumSubscription(user.getId());
+            String status = isPremium ? "PREMIUM" : "FREE";
+
+            // Dùng mapper để tạo DTO
+            return userMapper.toAdminUserViewDto(user, status);
+        });
+
+        // 3. Trả về kết quả dạng PagedResponse
+        return PagedResponse.of(dtoPage.getContent(), dtoPage);
     }
 
     @Transactional

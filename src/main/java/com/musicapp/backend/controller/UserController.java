@@ -1,6 +1,8 @@
 package com.musicapp.backend.controller;
 
 import com.musicapp.backend.dto.BaseResponse;
+import com.musicapp.backend.dto.PagedResponse;
+import com.musicapp.backend.dto.user.AdminUserViewDto;
 import com.musicapp.backend.dto.user.ChangePasswordRequest;
 import com.musicapp.backend.dto.user.UpdateProfileRequest;
 import com.musicapp.backend.dto.user.UserProfileDto;
@@ -8,7 +10,11 @@ import com.musicapp.backend.entity.User;
 import com.musicapp.backend.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,6 +24,15 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     private final UserService userService;
+
+    @GetMapping("/admin/all")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BaseResponse<PagedResponse<AdminUserViewDto>>> getAllUsersForAdmin(
+            @PageableDefault(sort = "id", direction = Sort.Direction.DESC) Pageable pageable,
+            @RequestParam(required = false) String search) {
+        PagedResponse<AdminUserViewDto> response = userService.getAllUsersForAdmin(search, pageable);
+        return ResponseEntity.ok(BaseResponse.success("Lấy danh sách người dùng thành công.", response));
+    }
 
     /**
      * API để lấy thông tin profile của người dùng đang đăng nhập.

@@ -2,6 +2,7 @@
 package com.musicapp.backend.mapper;
 
 import com.musicapp.backend.dto.user.UserProfileDto;
+import com.musicapp.backend.dto.user.AdminUserViewDto;
 import com.musicapp.backend.entity.Role;
 import com.musicapp.backend.entity.User;
 import org.springframework.stereotype.Component;
@@ -27,6 +28,23 @@ public class UserMapper {
                 .provider(user.getProvider())
                 .createdAt(user.getCreatedAt())
                 // Chuyển từ Set<Role> sang List<String>
+                .roles(user.getRoles().stream()
+                        .map(Role::getName)
+                        .collect(Collectors.toList()))
+                .build();
+    }
+
+    public AdminUserViewDto toAdminUserViewDto(User user, String status) {
+        if (user == null) {
+            return null;
+        }
+
+        return AdminUserViewDto.builder()
+                .id(user.getId())
+                .displayName(user.getDisplayName())
+                .email(user.getEmail())
+                .phoneNumber(user.getPhoneNumber())
+                .status(status) // Trạng thái được truyền từ service
                 .roles(user.getRoles().stream()
                         .map(Role::getName)
                         .collect(Collectors.toList()))
