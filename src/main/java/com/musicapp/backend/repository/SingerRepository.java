@@ -41,7 +41,7 @@ public interface SingerRepository extends JpaRepository<Singer, Long> {
             "ORDER BY s.name ASC")
     Page<SingerDto> searchAllWithSongCount(@Param("keyword") String keyword, Pageable pageable);
 
-    List<Singer> findByCreatorIdOrderByNameAsc(Long creatorId);
+    List<Singer> findByCreatorIdAndStatusOrderByNameAsc(Long creatorId, SingerStatus status);
 
     @Query("SELECT new com.musicapp.backend.dto.singer.SingerDto(s.id, s.name, s.email, s.avatarPath, COUNT(song.id), c.id, c.displayName, s.status) " +
             "FROM Singer s LEFT JOIN s.songs song LEFT JOIN s.creator c " +
