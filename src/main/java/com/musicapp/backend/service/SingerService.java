@@ -77,12 +77,14 @@ public class SingerService {
     }
 
     public List<SingerDto> getSelectableSingersForCreator(User creator) {
-        return singerRepository.findByCreatorIdAndStatusOrStatus(
-                        creator.getId(),
-                        SingerStatus.APPROVED
-                )
+        return singerRepository.findByCreatorIdOrderByNameAsc(creator.getId())
                 .stream()
-                .map(singerMapper::toDtoWithoutSongCount)
+                .map(singer -> {
+                    String displayName = singer.getName() + " (" + singer.getStatus().name() + ")";
+                    SingerDto dto = singerMapper.toDtoWithoutSongCount(singer);
+                    dto.setName(displayName);
+                    return dto;
+                })
                 .collect(Collectors.toList());
     }
 

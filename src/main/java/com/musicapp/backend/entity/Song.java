@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.List;
 
 @Getter
 @Setter
@@ -24,7 +25,6 @@ public class Song {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // ... các cột khác giữ nguyên ...
     @Column(nullable = false)
     private String title;
 
@@ -54,7 +54,6 @@ public class Song {
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 
-    // Relationships
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User creator;
@@ -73,23 +72,20 @@ public class Song {
     @Builder.Default
     private Set<Playlist> playlists = new HashSet<>();
 
-    // --- BẮT ĐẦU SỬA LỖI ---
-    // ĐÃ XÓA MỐI QUAN HỆ VỚI LIKE ĐỂ PHÙ HỢP VỚI THIẾT KẾ ĐA HÌNH
-    // Việc lấy/đếm like sẽ được thực hiện qua LikeRepository.
-    // --- KẾT THÚC SỬA LỖI ---
-
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "submission_id")
     private SongSubmission submission;
 
+    @OneToMany(mappedBy = "song", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<SongComment> comments;
+
     public enum SongStatus {
-        PENDING,  // Đang chờ duyệt
-        APPROVED, // Đã duyệt, đang hiển thị
-        REJECTED, // Bị từ chối
-        HIDDEN    // Đã duyệt, nhưng đang bị ẩn
+        PENDING,
+        APPROVED,
+        REJECTED,
+        HIDDEN
     }
 
-    // ... các phương thức equals, hashCode, toString giữ nguyên ...
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
