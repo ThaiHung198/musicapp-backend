@@ -55,6 +55,23 @@ public class SingerController {
         return ResponseEntity.ok(BaseResponse.success("Admin created singer successfully", newSinger));
     }
 
+    @PutMapping(value = "/admin/{id}", consumes = { MediaType.MULTIPART_FORM_DATA_VALUE })
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BaseResponse<SingerDto>> updateSingerByAdmin(
+            @PathVariable Long id,
+            @RequestPart("singerRequest") @Valid AdminUpdateSingerRequest request,
+            @RequestPart(value = "avatarFile", required = false) MultipartFile avatarFile) {
+        SingerDto updatedSinger = singerService.updateSingerByAdmin(id, request, avatarFile);
+        return ResponseEntity.ok(BaseResponse.success("Cập nhật ca sĩ thành công!", updatedSinger));
+    }
+
+    @DeleteMapping("/admin/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BaseResponse<Void>> deleteSingerByAdmin(@PathVariable Long id) {
+        singerService.deleteSingerByAdmin(id);
+        return ResponseEntity.ok(BaseResponse.success("Đã xóa ca sĩ thành công.", null));
+    }
+
     @GetMapping("/selectable")
     @PreAuthorize("hasRole('CREATOR')")
     public ResponseEntity<BaseResponse<List<SingerDto>>> getSelectableSingers(
@@ -91,22 +108,5 @@ public class SingerController {
     public ResponseEntity<BaseResponse<SingerDetailDto>> getSingerById(@PathVariable Long id) {
         SingerDetailDto singer = singerService.getSingerDetailById(id);
         return ResponseEntity.ok(BaseResponse.success(singer));
-    }
-
-    @PutMapping(value = "/{id}", consumes = { MediaType.MULTIPART_FORM_DATA_VALUE })
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<BaseResponse<SingerDto>> updateSinger(
-            @PathVariable Long id,
-            @RequestPart("singerRequest") @Valid AdminUpdateSingerRequest request,
-            @RequestPart(value = "avatarFile", required = false) MultipartFile avatarFile) {
-        SingerDto updatedSinger = singerService.updateSinger(id, request, avatarFile);
-        return ResponseEntity.ok(BaseResponse.success("Cập nhật ca sĩ thành công!", updatedSinger));
-    }
-
-    @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<BaseResponse<Void>> deleteSinger(@PathVariable Long id) {
-        singerService.deleteSinger(id);
-        return ResponseEntity.ok(BaseResponse.success("Singer deleted successfully", null));
     }
 }

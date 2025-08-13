@@ -27,8 +27,6 @@ import org.springframework.web.multipart.MultipartFile;
 import com.musicapp.backend.dto.singer.AdminUpdateSingerRequest;
 import org.springframework.util.StringUtils;
 
-import com.musicapp.backend.repository.SubmissionSingersRepository;
-
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -41,7 +39,6 @@ public class SingerService {
     private final UserRepository userRepository;
     private final SingerMapper singerMapper;
     private final FileStorageService fileStorageService;
-    private final SubmissionSingersRepository submissionSingersRepository;
     private final SongRepository songRepository;
     private final SongMapper songMapper;
 
@@ -74,6 +71,56 @@ public class SingerService {
 
         Singer savedSinger = singerRepository.save(singer);
         return singerMapper.toDto(savedSinger);
+    }
+
+    @Transactional
+    public SingerDto updateSingerByAdmin(Long id, AdminUpdateSingerRequest request, MultipartFile avatarFile) {
+        Singer singer = singerRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy ca sĩ với ID: " + id));
+
+        if (StringUtils.hasText(request.getName()) && !singer.getName().equals(request.getName())) {
+            singer.setName(request.getName());
+        }
+
+        if (StringUtils.hasText(request.getEmail()) && !singer.getEmail().equals(request.getEmail())) {
+            singerRepository.findByEmail(request.getEmail()).ifPresent(existingSinger -> {
+                if (!existingSinger.getId().equals(id)) {
+                    throw new ResourceAlreadyExistsException("Email '" + request.getEmail() + "' đã được sử dụng bởi một ca sĩ khác.");
+                }
+            });
+            singer.setEmail(request.getEmail());
+        }
+
+        if (avatarFile != null && !avatarFile.isEmpty()) {
+            if (singer.getAvatarPath() != null) {
+                fileStorageService.deleteFile(singer.getAvatarPath());
+            }
+            String newAvatarPath = fileStorageService.storeFile(avatarFile, "images/singers");
+            singer.setAvatarPath(newAvatarPath);
+        }
+
+        Singer updatedSinger = singerRepository.save(singer);
+        return singerMapper.toDto(updatedSinger);
+    }
+
+    @Transactional
+    public void deleteSingerByAdmin(Long id) {
+        Singer singer = singerRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy ca sĩ với ID: " + id));
+
+        if (singer.getStatus() != Singer.SingerStatus.APPROVED) {
+            throw new BadRequestException("Chỉ có thể xóa các ca sĩ đang ở trạng thái APPROVED.");
+        }
+
+        long songCount = songRepository.countBySingersContains(singer);
+        if (songCount > 0) {
+            throw new BadRequestException("Không thể xóa ca sĩ '" + singer.getName() + "' vì ca sĩ này đang được liên kết với " + songCount + " bài hát.");
+        }
+
+        if (singer.getAvatarPath() != null) {
+            fileStorageService.deleteFile(singer.getAvatarPath());
+        }
+        singerRepository.delete(singer);
     }
 
     public List<SingerDto> getSelectableSingersForCreator(User creator) {
@@ -109,79 +156,5 @@ public class SingerService {
                 .stream()
                 .map(singerMapper::toDtoWithoutSongCount)
                 .collect(Collectors.toList());
-    }
-
-    @Transactional
-    public SingerDto createSinger(CreateSingerRequest request, String creatorUsername) {
-        User creator = userRepository.findByEmail(creatorUsername)
-                .orElseThrow(() -> new ResourceNotFoundException("Creator user not found with email: " + creatorUsername));
-
-        if (singerRepository.existsByEmail(request.getEmail())) {
-            throw new ResourceAlreadyExistsException("Singer already exists with email: " + request.getEmail());
-        }
-
-        Singer singer = Singer.builder()
-                .name(request.getName())
-                .email(request.getEmail())
-                .avatarPath(request.getAvatarPath())
-                .creator(creator)
-                .status(SingerStatus.PENDING)
-                .build();
-
-        Singer savedSinger = singerRepository.save(singer);
-        return singerMapper.toDto(savedSinger);
-    }
-
-    @Transactional
-    public SingerDto updateSinger(Long id, AdminUpdateSingerRequest request, MultipartFile avatarFile) {
-        Singer singer = singerRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy ca sĩ với ID: " + id));
-
-        if (StringUtils.hasText(request.getName()) && !singer.getName().equals(request.getName())) {
-            singer.setName(request.getName());
-        }
-
-        if (StringUtils.hasText(request.getEmail()) && !singer.getEmail().equals(request.getEmail())) {
-            singerRepository.findByEmail(request.getEmail()).ifPresent(existingSinger -> {
-                throw new ResourceAlreadyExistsException("Email '" + request.getEmail() + "' đã được sử dụng bởi một ca sĩ khác.");
-            });
-            singer.setEmail(request.getEmail());
-        }
-
-        if (avatarFile != null && !avatarFile.isEmpty()) {
-            if (singer.getAvatarPath() != null) {
-                fileStorageService.deleteFile(singer.getAvatarPath());
-            }
-            String newAvatarPath = fileStorageService.storeFile(avatarFile, "images/singers");
-            singer.setAvatarPath(newAvatarPath);
-        }
-
-        Singer updatedSinger = singerRepository.save(singer);
-        return singerMapper.toDto(updatedSinger);
-    }
-
-    @Transactional
-    public void deleteSinger(Long id) {
-        Singer singer = singerRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy ca sĩ với ID: " + id));
-
-        if (singer.getStatus() != Singer.SingerStatus.APPROVED) {
-            throw new BadRequestException("Chỉ có thể xóa các ca sĩ đang ở trạng thái APPROVED.");
-        }
-
-        long songCount = singerRepository.countSongsBySingerId(id);
-        if (songCount > 0) {
-            throw new BadRequestException("Không thể xóa ca sĩ '" + singer.getName() + "' vì ca sĩ này đang có " + songCount + " bài hát trong hệ thống.");
-        }
-
-        long submissionCount = submissionSingersRepository.countBySingerId(id);
-        if (submissionCount > 0) {
-            throw new BadRequestException("Không thể xóa ca sĩ '" + singer.getName() + "' vì ca sĩ này đang có trong một yêu cầu chờ duyệt hoặc đã bị từ chối.");
-        }
-
-        if (singer.getAvatarPath() != null) {
-            fileStorageService.deleteFile(singer.getAvatarPath());
-        }
-        singerRepository.delete(singer);
     }
 }
