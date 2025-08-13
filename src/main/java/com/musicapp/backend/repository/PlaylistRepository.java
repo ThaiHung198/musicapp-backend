@@ -10,6 +10,10 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import com.musicapp.backend.entity.Playlist.PlaylistVisibility;
+import org.springframework.data.jpa.repository.Modifying;
+import java.util.List;
+
 import java.util.List;
 
 @Repository
@@ -52,4 +56,7 @@ public interface PlaylistRepository extends JpaRepository<Playlist, Long> {
     long countPublicPlaylists();
 
     Page<Playlist> findByVisibility(Playlist.PlaylistVisibility visibility, Pageable pageable);
+
+    @Modifying
+    void deleteByCreatorIdAndVisibility(Long creatorId, PlaylistVisibility visibility);
 }

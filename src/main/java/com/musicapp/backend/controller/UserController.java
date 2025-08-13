@@ -34,6 +34,13 @@ public class UserController {
         return ResponseEntity.ok(BaseResponse.success("Lấy danh sách người dùng thành công.", response));
     }
 
+    @PostMapping("/{userId}/promote-creator")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BaseResponse<UserProfileDto>> promoteCreator(@PathVariable Long userId) {
+        UserProfileDto updatedUser = userService.promoteUserToCreator(userId);
+        return ResponseEntity.ok(BaseResponse.success("Nâng cấp người dùng thành Creator thành công.", updatedUser));
+    }
+
     /**
      * API để lấy thông tin profile của người dùng đang đăng nhập.
      * @param currentUser Spring Security sẽ tự động inject user đang đăng nhập vào đây.

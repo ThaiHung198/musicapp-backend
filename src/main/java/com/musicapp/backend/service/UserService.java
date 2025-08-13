@@ -30,6 +30,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.musicapp.backend.repository.PlaylistRepository;
+import com.musicapp.backend.entity.Playlist;
+
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -41,6 +44,7 @@ public class UserService {
     private static final List<String> VALID_GENDERS = Arrays.asList("Male", "Female", "Other");
     private final RoleRepository roleRepository;
     private final SongRepository songRepository;
+    private final PlaylistRepository playlistRepository;
 
     @Transactional(readOnly = true)
     public UserProfileDto getCurrentUserProfile(User currentUser) {
@@ -95,6 +99,33 @@ public class UserService {
 
         // 4. Trả về kết quả
         return new PagedResponse<>(dtos, new PageInfo(creatorPage));
+    }
+
+    @Transactional
+    public UserProfileDto promoteUserToCreator(Long userId) {
+        // 1. Lấy thông tin role CREATOR từ DB
+        Role creatorRole = roleRepository.findByName("ROLE_CREATOR")
+                .orElseThrow(() -> new ResourceNotFoundException("Vai trò 'ROLE_CREATOR' không tồn tại trong database."));
+
+        // 2. Tìm user cần nâng cấp
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng với ID: " + userId));
+
+        // 3. Kiểm tra xem người dùng đã là Creator chưa
+        boolean isAlreadyCreator = user.getRoles().contains(creatorRole);
+        if (isAlreadyCreator) {
+            // Nếu đã là Creator, báo lỗi và không làm gì cả
+            throw new BadRequestException("Người dùng này đã là Creator.");
+        }
+
+        // Trước khi cấp vai trò, xóa tất cả playlist cá nhân của họ
+        playlistRepository.deleteByCreatorIdAndVisibility(user.getId(), Playlist.PlaylistVisibility.PRIVATE);
+
+        // 4. Nếu chưa, cấp vai trò Creator
+        user.getRoles().add(creatorRole);
+
+        User updatedUser = userRepository.save(user);
+        return userMapper.toUserProfileDto(updatedUser);
     }
 
     @Transactional
