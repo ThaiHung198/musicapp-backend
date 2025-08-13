@@ -1,13 +1,14 @@
 package com.musicapp.backend.repository;
 
 import com.musicapp.backend.entity.Like;
-import org.springframework.data.domain.Pageable; // THÊM IMPORT NÀY
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying; // <--- THÊM IMPORT NÀY
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.util.List; // THÊM IMPORT NÀY
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -22,6 +23,7 @@ public interface LikeRepository extends JpaRepository<Like, Long> {
     long countByLikeableIdAndLikeableType(Long likeableId, Like.LikeableType likeableType);
 
     // Delete like
+    @Modifying // <--- THÊM ANNOTATION NÀY
     void deleteByUserIdAndLikeableIdAndLikeableType(Long userId, Long likeableId, Like.LikeableType likeableType);
 
     // Count total likes by user
@@ -35,7 +37,6 @@ public interface LikeRepository extends JpaRepository<Like, Long> {
     @Query("SELECT l FROM Like l WHERE l.user.id = :userId AND l.likeableType = 'PLAYLIST' ORDER BY l.createdAt DESC")
     java.util.List<Like> findUserLikedPlaylists(@Param("userId") Long userId);
 
-    // --- BẮT ĐẦU PHẦN THÊM MỚI ---
     /**
      * Tìm ID của các bài hát được yêu thích nhất, sắp xếp theo số lượt thích giảm dần.
      * @param pageable Giới hạn số lượng kết quả trả về.
@@ -43,5 +44,4 @@ public interface LikeRepository extends JpaRepository<Like, Long> {
      */
     @Query("SELECT l.likeableId FROM Like l WHERE l.likeableType = 'SONG' GROUP BY l.likeableId ORDER BY COUNT(l.id) DESC")
     List<Long> findMostLikedSongIds(Pageable pageable);
-    // --- KẾT THÚC PHẦN THÊM MỚI ---
 }
