@@ -24,7 +24,6 @@ public class Playlist {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // ... các cột khác giữ nguyên ...
     @Column(nullable = false)
     private String name;
 
@@ -33,13 +32,13 @@ public class Playlist {
 
     @Enumerated(EnumType.STRING)
     @Builder.Default
+    @Column(name = "visibility", length = 20)
     private PlaylistVisibility visibility = PlaylistVisibility.PRIVATE;
 
     @Column(name = "created_at")
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 
-    // Relationships
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User creator;
@@ -49,12 +48,7 @@ public class Playlist {
     @Builder.Default
     private Set<Song> songs = new HashSet<>();
 
-    // --- BẮT ĐẦU SỬA LỖI ---
-    // ĐÃ XÓA MỐI QUAN HỆ VỚI LIKE ĐỂ PHÙ HỢP VỚI THIẾT KẾ ĐA HÌNH
-    // Việc lấy/đếm like sẽ được thực hiện qua LikeRepository.
-    // --- KẾT THÚC SỬA LỖI ---
-
     public enum PlaylistVisibility {
-        PRIVATE, PUBLIC
+        PRIVATE, PUBLIC, HIDDEN;
     }
 }

@@ -17,6 +17,8 @@ import com.musicapp.backend.mapper.PlaylistMapper;
 import com.musicapp.backend.repository.PlaylistRepository;
 import com.musicapp.backend.repository.SongRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
@@ -38,40 +40,23 @@ public class PlaylistService {
     @Transactional
     public PlaylistDto createPlaylist(CreatePlaylistRequest request, MultipartFile thumbnailFile, User currentUser) {
         boolean isAdmin = currentUser.getAuthorities().stream()
-                .anyMatch(grantedAuthority -> grantedAuthority.getAuthority().equals("ROLE_ADMIN"));
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        boolean isCreator = currentUser.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_CREATOR"));
 
         String thumbnailPath = null;
         if (thumbnailFile != null && !thumbnailFile.isEmpty()) {
             thumbnailPath = fileStorageService.storeFile(thumbnailFile, "images/playlists");
         }
 
-        Set<Song> songs = new HashSet<>();
-        if (!CollectionUtils.isEmpty(request.getSongIds())) {
-            List<Song> foundSongs = songRepository.findAllById(request.getSongIds());
-            if (foundSongs.size() != request.getSongIds().size()) {
-                throw new ResourceNotFoundException("Một hoặc nhiều bài hát không tồn tại.");
-            }
-
-            for (Song song : foundSongs) {
-                if (song.getStatus() != Song.SongStatus.APPROVED) {
-                    throw new BadRequestException("Chỉ có thể thêm vào playlist các bài hát đã được duyệt.");
-                }
-                songs.add(song);
-            }
-        }
+        Set<Song> songs = processSongIdsForPlaylist(request.getSongIds(), currentUser, isAdmin, isCreator);
 
         Playlist playlist = Playlist.builder()
                 .name(request.getName())
                 .thumbnailPath(thumbnailPath)
-
-                .songs(new HashSet<>())
-          
-                // --- BẮT ĐẦU SỬA LỖI ---
-                // Đã xóa dòng ".likes(new HashSet<>())" vì thuộc tính này không còn tồn tại trong Playlist Entity
-                // --- KẾT THÚC SỬA LỖI ---
-                .creator(isAdmin ? null : currentUser)
-
-                .visibility(isAdmin ? PlaylistVisibility.PUBLIC : PlaylistVisibility.PRIVATE)
+                .songs(songs)
+                .creator(currentUser)
+                .visibility((isAdmin || isCreator) ? PlaylistVisibility.PUBLIC : PlaylistVisibility.PRIVATE)
                 .build();
 
         Playlist savedPlaylist = playlistRepository.save(playlist);
@@ -84,15 +69,30 @@ public class PlaylistService {
         Playlist playlist = playlistRepository.findById(playlistId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy playlist với ID: " + playlistId));
 
-        if (playlist.getVisibility() == Playlist.PlaylistVisibility.PRIVATE) {
+        PlaylistVisibility visibility = playlist.getVisibility();
+
+        if (visibility == PlaylistVisibility.PRIVATE) {
+            if (currentUser == null) {
+                throw new UnauthorizedException("Bạn phải đăng nhập để xem playlist này.");
+            }
+            boolean isOwner = playlist.getCreator() != null &&
+                    playlist.getCreator().getId().equals(currentUser.getId());
+            if (!isOwner) {
+                throw new UnauthorizedException("Bạn không có quyền xem playlist này.");
+            }
+        }
+
+        else if (visibility == PlaylistVisibility.HIDDEN) {
             if (currentUser == null) {
                 throw new UnauthorizedException("Bạn phải đăng nhập để xem playlist này.");
             }
 
             boolean isOwner = playlist.getCreator() != null &&
                     playlist.getCreator().getId().equals(currentUser.getId());
+            boolean isAdmin = currentUser.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
 
-            if (!isOwner) {
+            if (!isOwner && !isAdmin) {
                 throw new UnauthorizedException("Bạn không có quyền xem playlist này.");
             }
         }
@@ -117,10 +117,7 @@ public class PlaylistService {
         Playlist playlist = playlistRepository.findById(playlistId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy playlist với ID: " + playlistId));
 
-        boolean isOwner = (playlist.getCreator() != null && playlist.getCreator().getId().equals(currentUser.getId())) ||
-                (playlist.getCreator() == null && currentUser.getAuthorities().stream()
-                        .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN")));
-
+        boolean isOwner = (playlist.getCreator() != null && playlist.getCreator().getId().equals(currentUser.getId()));
         if (!isOwner) {
             throw new UnauthorizedException("Bạn không có quyền sửa playlist này.");
         }
@@ -128,44 +125,42 @@ public class PlaylistService {
         if (request.getName() != null && !request.getName().isBlank()) {
             playlist.setName(request.getName());
         }
-
         if (thumbnailFile != null && !thumbnailFile.isEmpty()) {
             String newThumbnailPath = fileStorageService.storeFile(thumbnailFile, "images/playlists");
             playlist.setThumbnailPath(newThumbnailPath);
         }
 
         if (request.getSongIds() != null) {
-            Set<Song> newSongs = new HashSet<>();
-            if (!request.getSongIds().isEmpty()) {
-                List<Song> foundSongs = songRepository.findAllById(request.getSongIds());
-                if (foundSongs.size() != request.getSongIds().size()) {
-                    throw new ResourceNotFoundException("Một hoặc nhiều bài hát không tồn tại.");
-                }
-                for (Song song : foundSongs) {
-                    if (song.getStatus() != Song.SongStatus.APPROVED) {
-                        throw new BadRequestException("Chỉ có thể thêm vào playlist các bài hát đã được duyệt.");
-                    }
-                    newSongs.add(song);
-                }
-            }
+            boolean isAdmin = currentUser.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+            boolean isCreator = currentUser.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_CREATOR"));
+
+            Set<Song> newSongs = processSongIdsForPlaylist(request.getSongIds(), currentUser, isAdmin, isCreator);
             playlist.setSongs(newSongs);
         }
 
-        Playlist updatedPlaylist = playlistRepository.save(playlist);
-
-        return playlistMapper.toDto(updatedPlaylist, currentUser);
+        return playlistMapper.toDto(playlist, currentUser);
     }
-
 
     @Transactional
     public void deletePlaylist(Long playlistId, User currentUser) {
         Playlist playlist = playlistRepository.findById(playlistId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy playlist với ID: " + playlistId));
 
+        boolean isAdmin = currentUser.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
         boolean isOwner = playlist.getCreator() != null &&
                 playlist.getCreator().getId().equals(currentUser.getId());
 
-        if (!isOwner) {
+        User playlistCreator = playlist.getCreator();
+        boolean wasCreatedByCreator = playlistCreator != null && playlistCreator.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_CREATOR"));
+
+        boolean canDelete = isOwner || (isAdmin && wasCreatedByCreator);
+
+        if (!canDelete) {
             throw new UnauthorizedException("Bạn không có quyền xóa playlist này.");
         }
 
@@ -177,28 +172,20 @@ public class PlaylistService {
         Playlist playlist = playlistRepository.findById(playlistId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy playlist với ID: " + playlistId));
 
-        boolean isOwner = (playlist.getCreator() != null && playlist.getCreator().getId().equals(currentUser.getId())) ||
-                (playlist.getCreator() == null && currentUser.getAuthorities().stream()
-                        .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN")));
-
+        boolean isOwner = (playlist.getCreator() != null && playlist.getCreator().getId().equals(currentUser.getId()));
         if (!isOwner) {
             throw new UnauthorizedException("Bạn không có quyền thêm bài hát vào playlist này.");
         }
 
-        List<Song> songsToAdd = songRepository.findAllById(request.getSongIds());
-        if (songsToAdd.size() != request.getSongIds().size()) {
-            throw new ResourceNotFoundException("Một hoặc nhiều bài hát trong danh sách không tồn tại.");
-        }
+        boolean isAdmin = currentUser.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        boolean isCreator = currentUser.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_CREATOR"));
 
-        int songsAddedCount = 0;
-        for (Song song : songsToAdd) {
-            if (song.getStatus() != Song.SongStatus.APPROVED) {
-                continue;
-            }
-            if (playlist.getSongs().add(song)) {
-                songsAddedCount++;
-            }
-        }
+        Set<Song> songsToAdd = processSongIdsForPlaylist(request.getSongIds(), currentUser, isAdmin, isCreator);
+
+        playlist.getSongs().addAll(songsToAdd);
+
         return playlistMapper.toDto(playlist, currentUser);
     }
 
@@ -225,5 +212,68 @@ public class PlaylistService {
         }
 
         return playlistMapper.toDto(playlist, currentUser);
+    }
+
+    private Set<Song> processSongIdsForPlaylist(List<Long> songIds, User currentUser, boolean isAdmin, boolean isCreator) {
+        Set<Song> processedSongs = new HashSet<>();
+        if (CollectionUtils.isEmpty(songIds)) {
+            return processedSongs;
+        }
+
+        List<Song> foundSongs = songRepository.findAllById(songIds);
+        if (foundSongs.size() != songIds.size()) {
+            throw new ResourceNotFoundException("Một hoặc nhiều bài hát không tồn tại.");
+        }
+
+        for (Song song : foundSongs) {
+            if (song.getStatus() != Song.SongStatus.APPROVED) {
+                throw new BadRequestException("Chỉ có thể thêm vào playlist các bài hát đã được duyệt (ID: " + song.getId() + ").");
+            }
+
+            if (isCreator && !isAdmin) {
+                if (!song.getCreator().getId().equals(currentUser.getId())) {
+                    throw new UnauthorizedException("Creator chỉ có thể thêm bài hát do chính mình tạo (ID: " + song.getId() + ").");
+                }
+            }
+            processedSongs.add(song);
+        }
+        return processedSongs;
+    }
+
+    @Transactional
+    public PlaylistDto togglePlaylistVisibility(Long playlistId, User currentUser) {
+        Playlist playlist = playlistRepository.findById(playlistId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy playlist với ID: " + playlistId));
+
+        if (playlist.getVisibility() == PlaylistVisibility.PRIVATE) {
+            throw new BadRequestException("Không thể ẩn/hiện playlist PRIVATE.");
+        }
+
+        boolean isAdmin = currentUser.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        boolean isOwner = playlist.getCreator() != null &&
+                playlist.getCreator().getId().equals(currentUser.getId());
+        User playlistCreator = playlist.getCreator();
+        boolean wasCreatedByCreator = playlistCreator != null && playlistCreator.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_CREATOR"));
+
+        boolean canToggle = isOwner || (isAdmin && wasCreatedByCreator);
+
+        if (!canToggle) {
+            throw new UnauthorizedException("Bạn không có quyền thay đổi trạng thái của playlist này.");
+        }
+
+        if (playlist.getVisibility() == PlaylistVisibility.PUBLIC) {
+            playlist.setVisibility(PlaylistVisibility.HIDDEN);
+        } else if (playlist.getVisibility() == PlaylistVisibility.HIDDEN) {
+            playlist.setVisibility(PlaylistVisibility.PUBLIC);
+        }
+
+        return playlistMapper.toDto(playlist, currentUser);
+    }
+
+    public Page<PlaylistDto> getAllPublicPlaylists(Pageable pageable, User currentUser) {
+        Page<Playlist> playlistPage = playlistRepository.findByVisibility(PlaylistVisibility.PUBLIC, pageable);
+        return playlistPage.map(p -> playlistMapper.toDto(p, currentUser));
     }
 }
