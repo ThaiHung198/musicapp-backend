@@ -1,5 +1,6 @@
 package com.musicapp.backend.mapper;
 
+import com.musicapp.backend.dto.playlist.PlaylistDetailDto;
 import com.musicapp.backend.dto.playlist.PlaylistDto;
 import com.musicapp.backend.entity.Like;
 import com.musicapp.backend.entity.Playlist;
@@ -22,6 +23,26 @@ public class PlaylistMapper {
         }
 
         return PlaylistDto.builder()
+                .id(playlist.getId())
+                .name(playlist.getName())
+                .thumbnailPath(playlist.getThumbnailPath())
+                .visibility(playlist.getVisibility().name())
+                .createdAt(playlist.getCreatedAt())
+                .creatorId(playlist.getCreator() != null ? playlist.getCreator().getId() : null)
+                .creatorName(playlist.getCreator() != null ? playlist.getCreator().getDisplayName() : "Hệ thống")
+                .songCount(playlist.getSongs() != null ? playlist.getSongs().size() : 0)
+                .likeCount(likeRepository.countByLikeableIdAndLikeableType(playlist.getId(), Like.LikeableType.PLAYLIST))
+                .isLikedByCurrentUser(currentUser != null && likeRepository.existsByUserIdAndLikeableIdAndLikeableType(
+                        currentUser.getId(), playlist.getId(), Like.LikeableType.PLAYLIST))
+                .build();
+    }
+
+    public PlaylistDetailDto toDetailDto(Playlist playlist, User currentUser) {
+        if (playlist == null) {
+            return null;
+        }
+
+        return PlaylistDetailDto.builder()
                 .id(playlist.getId())
                 .name(playlist.getName())
                 .thumbnailPath(playlist.getThumbnailPath())

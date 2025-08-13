@@ -1,12 +1,10 @@
+// src/main/java/com/musicapp/backend/controller/PlaylistController.java
 package com.musicapp.backend.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.musicapp.backend.dto.BaseResponse;
-import com.musicapp.backend.dto.playlist.AddSongsToPlaylistRequest;
-import com.musicapp.backend.dto.playlist.CreatePlaylistRequest;
-import com.musicapp.backend.dto.playlist.PlaylistDto;
-import com.musicapp.backend.dto.playlist.UpdatePlaylistRequest;
+import com.musicapp.backend.dto.playlist.*;
 import com.musicapp.backend.entity.User;
 import com.musicapp.backend.service.PlaylistService;
 import jakarta.validation.Valid;
@@ -42,11 +40,11 @@ public class PlaylistController {
 
 
     @GetMapping("/{id}")
-    public ResponseEntity<BaseResponse<PlaylistDto>> getPlaylistById(
+    public ResponseEntity<BaseResponse<PlaylistDetailDto>> getPlaylistById(
             @PathVariable Long id,
             @AuthenticationPrincipal User currentUser
     ) {
-        PlaylistDto playlistDto = playlistService.getPlaylistById(id, currentUser);
+        PlaylistDetailDto playlistDto = playlistService.getPlaylistById(id, currentUser);
         return ResponseEntity.ok(BaseResponse.success("Lấy thông tin playlist thành công!", playlistDto));
     }
 
@@ -60,14 +58,14 @@ public class PlaylistController {
 
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAnyRole('USER', 'CREATOR', 'ADMIN')")
-    public ResponseEntity<BaseResponse<PlaylistDto>> updatePlaylist(
+    public ResponseEntity<BaseResponse<PlaylistDetailDto>> updatePlaylist(
             @PathVariable Long id,
             @RequestPart("request") String requestJson,
             @RequestPart(value = "thumbnailFile", required = false) MultipartFile thumbnailFile,
             @AuthenticationPrincipal User currentUser
     ) throws JsonProcessingException {
         UpdatePlaylistRequest request = new ObjectMapper().readValue(requestJson, UpdatePlaylistRequest.class);
-        PlaylistDto updatedPlaylist = playlistService.updatePlaylist(id, request, thumbnailFile, currentUser);
+        PlaylistDetailDto updatedPlaylist = playlistService.updatePlaylist(id, request, thumbnailFile, currentUser);
         return ResponseEntity.ok(BaseResponse.success("Cập nhật playlist thành công!", updatedPlaylist));
     }
 

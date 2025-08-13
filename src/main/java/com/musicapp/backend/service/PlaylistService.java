@@ -1,9 +1,7 @@
+// src/main/java/com/musicapp/backend/service/PlaylistService.java
 package com.musicapp.backend.service;
 
-import com.musicapp.backend.dto.playlist.AddSongsToPlaylistRequest;
-import com.musicapp.backend.dto.playlist.CreatePlaylistRequest;
-import com.musicapp.backend.dto.playlist.PlaylistDto;
-import com.musicapp.backend.dto.playlist.UpdatePlaylistRequest;
+import com.musicapp.backend.dto.playlist.*;
 import com.musicapp.backend.entity.Playlist;
 import com.musicapp.backend.entity.Playlist.PlaylistVisibility;
 import com.musicapp.backend.entity.Song;
@@ -65,7 +63,7 @@ public class PlaylistService {
     }
 
     @Transactional(readOnly = true)
-    public PlaylistDto getPlaylistById(Long playlistId, User currentUser) {
+    public PlaylistDetailDto getPlaylistById(Long playlistId, User currentUser) {
         Playlist playlist = playlistRepository.findById(playlistId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy playlist với ID: " + playlistId));
 
@@ -97,7 +95,7 @@ public class PlaylistService {
             }
         }
 
-        return playlistMapper.toDto(playlist, currentUser);
+        return playlistMapper.toDetailDto(playlist, currentUser);
     }
 
 
@@ -108,7 +106,7 @@ public class PlaylistService {
     }
 
     @Transactional
-    public PlaylistDto updatePlaylist(
+    public PlaylistDetailDto updatePlaylist(
             Long playlistId,
             UpdatePlaylistRequest request,
             MultipartFile thumbnailFile,
@@ -139,8 +137,8 @@ public class PlaylistService {
             Set<Song> newSongs = processSongIdsForPlaylist(request.getSongIds(), currentUser, isAdmin, isCreator);
             playlist.setSongs(newSongs);
         }
-
-        return playlistMapper.toDto(playlist, currentUser);
+        Playlist updatedPlaylist = playlistRepository.save(playlist);
+        return playlistMapper.toDetailDto(updatedPlaylist, currentUser);
     }
 
     @Transactional

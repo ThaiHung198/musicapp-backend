@@ -12,6 +12,7 @@ import com.musicapp.backend.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -71,7 +72,11 @@ public class CommentService {
         SongComment comment = songCommentRepository.findById(commentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy bình luận với ID: " + commentId));
 
-        if (!comment.getUser().getId().equals(currentUser.getId())) {
+        boolean isAdmin = currentUser.getAuthorities().stream()
+                .anyMatch(grantedAuthority -> grantedAuthority.getAuthority().equals("ROLE_ADMIN"));
+        boolean isOwner = comment.getUser().getId().equals(currentUser.getId());
+
+        if (!isOwner && !isAdmin) {
             throw new UnauthorizedException("Bạn không có quyền xóa bình luận này.");
         }
         songCommentRepository.delete(comment);
@@ -82,7 +87,11 @@ public class CommentService {
         PlaylistComment comment = playlistCommentRepository.findById(commentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy bình luận với ID: " + commentId));
 
-        if (!comment.getUser().getId().equals(currentUser.getId())) {
+        boolean isAdmin = currentUser.getAuthorities().stream()
+                .anyMatch(grantedAuthority -> grantedAuthority.getAuthority().equals("ROLE_ADMIN"));
+        boolean isOwner = comment.getUser().getId().equals(currentUser.getId());
+
+        if (!isOwner && !isAdmin) {
             throw new UnauthorizedException("Bạn không có quyền xóa bình luận này.");
         }
         playlistCommentRepository.delete(comment);
