@@ -28,13 +28,18 @@ public class PlaylistDto {
     private Integer songCount;
 
     private Long likeCount;
-    private Long commentCount; // Thuộc tính này vẫn giữ lại để Service có thể set giá trị sau
+    private Long commentCount;
     private Boolean isLikedByCurrentUser;
 
     // --- BẮT ĐẦU SỬA LỖI ---
-    // Constructor này được sử dụng bởi PlaylistRepository.
-    // Chúng ta đã loại bỏ tham số "commentCount" vì không thể truy vấn trực tiếp được nữa.
-    public PlaylistDto(Long id, String name, String thumbnailPath, Playlist.PlaylistVisibility visibility, LocalDateTime createdAt, Long creatorId, Long songCount, Long likeCount) {
+    // XÓA CONSTRUCTOR CŨ GÂY LỖI
+
+    /**
+     * Constructor mới này được sử dụng bởi PlaylistRepository.
+     * Nó chỉ nhận các tham số mà câu truy vấn JPQL có thể cung cấp trực tiếp.
+     * Like count và comment count sẽ được tính và set ở tầng Service.
+     */
+    public PlaylistDto(Long id, String name, String thumbnailPath, Playlist.PlaylistVisibility visibility, LocalDateTime createdAt, Long creatorId, Long songCount) {
         this.id = id;
         this.name = name;
         this.thumbnailPath = thumbnailPath;
@@ -42,8 +47,7 @@ public class PlaylistDto {
         this.createdAt = createdAt;
         this.creatorId = creatorId;
         this.songCount = songCount.intValue();
-        this.likeCount = likeCount;
-        // this.commentCount sẽ được set thủ công ở tầng Service nếu cần.
+        // likeCount và commentCount sẽ là null ban đầu
     }
     // --- KẾT THÚC SỬA LỖI ---
 }

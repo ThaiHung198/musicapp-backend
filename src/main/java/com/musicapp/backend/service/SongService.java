@@ -21,6 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.Collections; // THÊM IMPORT NÀY
+import java.util.Comparator; // THÊM IMPORT NÀY
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -38,6 +40,9 @@ public class SongService {
     private final SubscriptionService subscriptionService;
     private final SongMapper songMapper;
     private final FileStorageService fileStorageService;
+    private final LikeRepository likeRepository; // THÊM DEPENDENCY NÀY
+
+    // ... các phương thức khác không thay đổi ...
 
     public List<SongDto> searchApprovedSongsForPlaylist(String keyword, User currentUser) {
         Pageable pageable = PageRequest.of(0, 10);
@@ -138,14 +143,36 @@ public class SongService {
                 .collect(Collectors.toList());
     }
 
+    // --- BẮT ĐẦU SỬA LỖI ---
+    /**
+     * Lấy danh sách các bài hát được yêu thích nhất.
+     * Logic được viết lại để sử dụng LikeRepository.
+     */
     public List<SongDto> getMostLikedSongs(int limit, User currentUser) {
         Pageable pageable = PageRequest.of(0, limit);
-        return songRepository.findMostLikedSongs(pageable)
-                .stream()
+
+        // Bước 1: Lấy danh sách ID các bài hát được like nhiều nhất từ LikeRepository
+        List<Long> mostLikedSongIds = likeRepository.findMostLikedSongIds(pageable);
+
+        if (mostLikedSongIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // Bước 2: Lấy thông tin chi tiết các bài hát từ danh sách ID đã có
+        List<Song> songs = songRepository.findAllById(mostLikedSongIds);
+
+        // Bước 3: Sắp xếp lại danh sách 'songs' theo đúng thứ tự của 'mostLikedSongIds'
+        // vì findAllById không đảm bảo thứ tự.
+        songs.sort(Comparator.comparing(song -> mostLikedSongIds.indexOf(song.getId())));
+
+        // Bước 4: Chuyển đổi sang DTO để trả về
+        return songs.stream()
                 .map(song -> songMapper.toDto(song, currentUser))
                 .collect(Collectors.toList());
     }
+    // --- KẾT THÚC SỬA LỖI ---
 
+    // ... các phương thức còn lại không thay đổi ...
     @Transactional
     public SongDto createSongByAdmin(AdminCreateSongRequest request, MultipartFile audioFile, MultipartFile thumbnailFile, User admin) {
         String audioFilePath = fileStorageService.storeFile(audioFile, "audio");
