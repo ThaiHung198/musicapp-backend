@@ -2,14 +2,20 @@ package com.musicapp.backend.service;
 
 import com.musicapp.backend.dto.singer.AdminCreateSingerRequest;
 import com.musicapp.backend.dto.singer.CreateSingerRequest;
+import com.musicapp.backend.dto.singer.SingerDetailDto;
 import com.musicapp.backend.dto.singer.SingerDto;
+import com.musicapp.backend.dto.song.SongDto;
 import com.musicapp.backend.entity.Singer;
 import com.musicapp.backend.entity.Singer.SingerStatus;
+import com.musicapp.backend.entity.Song;
 import com.musicapp.backend.entity.User;
+import com.musicapp.backend.exception.BadRequestException;
 import com.musicapp.backend.exception.ResourceAlreadyExistsException;
 import com.musicapp.backend.exception.ResourceNotFoundException;
 import com.musicapp.backend.mapper.SingerMapper;
+import com.musicapp.backend.mapper.SongMapper;
 import com.musicapp.backend.repository.SingerRepository;
+import com.musicapp.backend.repository.SongRepository;
 import com.musicapp.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -17,6 +23,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+
+import com.musicapp.backend.dto.singer.AdminUpdateSingerRequest;
+import org.springframework.util.StringUtils;
+
+import com.musicapp.backend.repository.SubmissionSingersRepository;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -30,12 +41,15 @@ public class SingerService {
     private final UserRepository userRepository;
     private final SingerMapper singerMapper;
     private final FileStorageService fileStorageService;
+    private final SubmissionSingersRepository submissionSingersRepository;
+    private final SongRepository songRepository;
+    private final SongMapper songMapper;
 
-    public Page<SingerDto> getAllSingersForAdmin(String keyword, Pageable pageable) {
+    public Page<SingerDto> getAllSingersForAdmin(String keyword, Pageable pageable, Singer.SingerStatus status) {
         if (keyword != null && !keyword.trim().isEmpty()) {
-            return singerRepository.searchAllWithSongCountForAdmin(keyword.trim(), pageable);
+            return singerRepository.searchAllWithSongCountForAdmin(keyword.trim(), pageable, status);
         } else {
-            return singerRepository.findAllWithSongCountForAdmin(pageable);
+            return singerRepository.findAllWithSongCountForAdmin(pageable, status);
         }
     }
 
@@ -63,10 +77,7 @@ public class SingerService {
     }
 
     public List<SingerDto> getSelectableSingersForCreator(User creator) {
-        return singerRepository.findByCreatorIdAndStatusOrStatus(
-                        creator.getId(),
-                        SingerStatus.APPROVED
-                )
+        return singerRepository.findByCreatorIdAndStatusOrderByNameAsc(creator.getId(), SingerStatus.APPROVED)
                 .stream()
                 .map(singerMapper::toDtoWithoutSongCount)
                 .collect(Collectors.toList());
@@ -80,10 +91,16 @@ public class SingerService {
         return singerRepository.searchAllWithSongCount(keyword, pageable);
     }
 
-    public SingerDto getSingerById(Long id) {
+    public SingerDetailDto getSingerDetailById(Long id) {
         Singer singer = singerRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Singer not found with id: " + id));
-        return singerMapper.toDto(singer);
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy ca sĩ với ID: " + id));
+
+        List<Song> songs = songRepository.findBySingersIdAndStatus(id, Song.SongStatus.APPROVED);
+        List<SongDto> songDtos = songs.stream()
+                .map(song -> songMapper.toDto(song, null))
+                .collect(Collectors.toList());
+
+        return singerMapper.toDetailDto(singer, songDtos);
     }
 
     public List<SingerDto> getAllSingersAsList() {
@@ -116,19 +133,28 @@ public class SingerService {
     }
 
     @Transactional
-    public SingerDto updateSinger(Long id, CreateSingerRequest request) {
+    public SingerDto updateSinger(Long id, AdminUpdateSingerRequest request, MultipartFile avatarFile) {
         Singer singer = singerRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Singer not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy ca sĩ với ID: " + id));
 
-        singerRepository.findByEmail(request.getEmail()).ifPresent(existingSinger -> {
-            if (!existingSinger.getId().equals(id)) {
-                throw new ResourceAlreadyExistsException("Another singer already exists with email: " + request.getEmail());
+        if (StringUtils.hasText(request.getName()) && !singer.getName().equals(request.getName())) {
+            singer.setName(request.getName());
+        }
+
+        if (StringUtils.hasText(request.getEmail()) && !singer.getEmail().equals(request.getEmail())) {
+            singerRepository.findByEmail(request.getEmail()).ifPresent(existingSinger -> {
+                throw new ResourceAlreadyExistsException("Email '" + request.getEmail() + "' đã được sử dụng bởi một ca sĩ khác.");
+            });
+            singer.setEmail(request.getEmail());
+        }
+
+        if (avatarFile != null && !avatarFile.isEmpty()) {
+            if (singer.getAvatarPath() != null) {
+                fileStorageService.deleteFile(singer.getAvatarPath());
             }
-        });
-
-        singer.setName(request.getName());
-        singer.setEmail(request.getEmail());
-        singer.setAvatarPath(request.getAvatarPath());
+            String newAvatarPath = fileStorageService.storeFile(avatarFile, "images/singers");
+            singer.setAvatarPath(newAvatarPath);
+        }
 
         Singer updatedSinger = singerRepository.save(singer);
         return singerMapper.toDto(updatedSinger);
@@ -136,9 +162,26 @@ public class SingerService {
 
     @Transactional
     public void deleteSinger(Long id) {
-        if (!singerRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Singer not found with id: " + id);
+        Singer singer = singerRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy ca sĩ với ID: " + id));
+
+        if (singer.getStatus() != Singer.SingerStatus.APPROVED) {
+            throw new BadRequestException("Chỉ có thể xóa các ca sĩ đang ở trạng thái APPROVED.");
         }
-        singerRepository.deleteById(id);
+
+        long songCount = singerRepository.countSongsBySingerId(id);
+        if (songCount > 0) {
+            throw new BadRequestException("Không thể xóa ca sĩ '" + singer.getName() + "' vì ca sĩ này đang có " + songCount + " bài hát trong hệ thống.");
+        }
+
+        long submissionCount = submissionSingersRepository.countBySingerId(id);
+        if (submissionCount > 0) {
+            throw new BadRequestException("Không thể xóa ca sĩ '" + singer.getName() + "' vì ca sĩ này đang có trong một yêu cầu chờ duyệt hoặc đã bị từ chối.");
+        }
+
+        if (singer.getAvatarPath() != null) {
+            fileStorageService.deleteFile(singer.getAvatarPath());
+        }
+        singerRepository.delete(singer);
     }
 }

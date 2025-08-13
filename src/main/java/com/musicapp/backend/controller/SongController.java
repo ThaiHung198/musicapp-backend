@@ -33,6 +33,22 @@ public class SongController {
 
     private final SongService songService;
 
+    @GetMapping("/all-for-playlist")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<BaseResponse<List<SongDto>>> getAllSongsForPlaylist(@AuthenticationPrincipal User currentUser) {
+        List<SongDto> songs = songService.getAllSongsForPlaylist(currentUser);
+        return ResponseEntity.ok(BaseResponse.success(songs));
+    }
+
+    @GetMapping("/playlist/{playlistId}/search")
+    public ResponseEntity<BaseResponse<List<SongDto>>> searchForPlaylist(
+            @PathVariable Long playlistId,
+            @RequestParam(defaultValue = "") String keyword,
+            @AuthenticationPrincipal User currentUser) {
+        List<SongDto> songs = songService.searchApprovedSongsForPlaylist(playlistId, keyword, currentUser);
+        return ResponseEntity.ok(BaseResponse.success("Tìm kiếm bài hát trong playlist thành công.", songs));
+    }
+
     @GetMapping("/admin/all")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BaseResponse<PagedResponse<SongDto>>> getAllSongsForAdmin(
@@ -77,6 +93,16 @@ public class SongController {
     public ResponseEntity<BaseResponse<Void>> incrementListenCount(@PathVariable Long id) {
         songService.incrementListenCount(id);
         return ResponseEntity.ok(BaseResponse.success("Listen count incremented", null));
+    }
+
+    @PostMapping("/{id}/toggle-visibility")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BaseResponse<SongDto>> toggleVisibility(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User admin) {
+        SongDto updatedSong = songService.toggleSongVisibility(id, admin);
+        String message = updatedSong.getStatus().equals("HIDDEN") ? "Ẩn bài hát thành công." : "Hiện bài hát thành công.";
+        return ResponseEntity.ok(BaseResponse.success(message, updatedSong));
     }
 
     @GetMapping("/top")
@@ -215,30 +241,16 @@ public class SongController {
         return ResponseEntity.ok(BaseResponse.success("Song rejected successfully", song));
     }
 
-    @GetMapping("/my/approved")
+    @GetMapping("/my-library")
     @PreAuthorize("hasRole('CREATOR')")
-    public ResponseEntity<PagedResponse<SongDto>> getMyApprovedSongs(
+    public ResponseEntity<BaseResponse<PagedResponse<SongDto>>> getMyLibrary(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String name,
             Authentication authentication) {
-
         String username = authentication.getName();
-        Pageable pageable = PageRequest.of(page, size);
-
-        PagedResponse<SongDto> response = songService.getMyApprovedSongs(username, name, pageable);
-
-        return ResponseEntity.ok(response);
-    }
-
-    @GetMapping("/my/{id}")
-    @PreAuthorize("hasRole('CREATOR')")
-    public ResponseEntity<BaseResponse<SongDto>> getMyApprovedSongDetails(
-            @PathVariable Long id,
-            Authentication authentication) {
-
-        String username = authentication.getName();
-        SongDto songDto = songService.getMyApprovedSongDetails(id, username);
-        return ResponseEntity.ok(BaseResponse.success("Approved song details retrieved successfully", songDto));
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        PagedResponse<SongDto> response = songService.getMyLibrary(username, name, pageable);
+        return ResponseEntity.ok(BaseResponse.success(response));
     }
 }

@@ -65,17 +65,19 @@ public class SubmissionController {
         return ResponseEntity.ok(BaseResponse.success("Submission retrieved successfully", submission));
     }
 
-    @PutMapping("/{id}")
-    @PreAuthorize("hasRole('CREATOR')") // Chỉ CREATOR có thể gọi
+    @PutMapping(value = "/{id}", consumes = { MediaType.MULTIPART_FORM_DATA_VALUE })
+    @PreAuthorize("hasRole('CREATOR')")
     public ResponseEntity<BaseResponse<SubmissionDto>> updateSubmission(
             @PathVariable Long id,
-            @Valid @RequestBody CreateSubmissionRequest request, // Dùng lại CreateSubmissionRequest là hợp lý
+            @RequestPart("submissionRequest") @Valid CreateSubmissionRequest request,
+            @RequestPart(value = "audioFile", required = false) MultipartFile audioFile,
+            @RequestPart(value = "thumbnailFile", required = false) MultipartFile thumbnailFile,
             Authentication authentication) {
         String username = authentication.getName();
-        // Logic sẽ được gọi trong service
-        SubmissionDto submission = submissionService.updateSubmission(id, request, username);
+        SubmissionDto submission = submissionService.updateSubmission(id, request, audioFile, thumbnailFile, username);
         return ResponseEntity.ok(BaseResponse.success("Submission updated successfully", submission));
     }
+
 
     @DeleteMapping("/{id}/withdraw")
     @PreAuthorize("hasRole('CREATOR') or hasRole('ADMIN')")

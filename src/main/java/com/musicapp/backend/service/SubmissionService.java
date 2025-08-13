@@ -173,7 +173,7 @@ public class SubmissionService {
     }
 
     @Transactional
-    public SubmissionDto updateSubmission(Long id, CreateSubmissionRequest request, String username) {
+    public SubmissionDto updateSubmission(Long id, CreateSubmissionRequest request, MultipartFile audioFile, MultipartFile thumbnailFile, String username) {
         User user = userRepository.findByEmail(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
 
@@ -185,6 +185,20 @@ public class SubmissionService {
         }
         if (submission.getStatus() != SongSubmission.SubmissionStatus.PENDING) {
             throw new BadRequestException("Can only update submissions that are in PENDING status.");
+        }
+
+        // Handle file updates
+        if (audioFile != null && !audioFile.isEmpty()) {
+            fileStorageService.deleteFile(submission.getFilePath());
+            String newAudioPath = fileStorageService.storeFile(audioFile, "audio");
+            submission.setFilePath(newAudioPath);
+        }
+        if (thumbnailFile != null && !thumbnailFile.isEmpty()) {
+            if (submission.getThumbnailPath() != null) {
+                fileStorageService.deleteFile(submission.getThumbnailPath()); // Delete old thumbnail if exists
+            }
+            String newThumbnailPath = fileStorageService.storeFile(thumbnailFile, "images/songs");
+            submission.setThumbnailPath(newThumbnailPath);
         }
 
         submission.setTitle(request.getTitle());

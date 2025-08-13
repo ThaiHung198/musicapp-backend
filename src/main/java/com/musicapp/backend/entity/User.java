@@ -16,6 +16,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Set;
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Getter
@@ -56,6 +57,10 @@ public class User implements UserDetails {
     @Builder.Default
     private String provider = "local";
 
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private UserStatus status = UserStatus.ACTIVE;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     @CreationTimestamp
     private LocalDateTime createdAt;
@@ -84,13 +89,14 @@ public class User implements UserDetails {
     @OneToMany(mappedBy = "creator", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Set<Playlist> createdPlaylists;
 
-    // SỬA LỖI TẠI ĐÂY: "mappedby" -> "mappedBy"
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<Like> likes;
 
-    // SỬA LỖI TẠI ĐÂY: "mappedby" -> "mappedBy"
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<Comment> comments;
+    private List<SongComment> songComments;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PlaylistComment> playlistComments;
 
     @OneToMany(mappedBy = "creator", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Set<SongSubmission> songSubmissions;
@@ -103,6 +109,10 @@ public class User implements UserDetails {
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Set<UserSubscription> subscriptions;
+
+    public enum UserStatus {
+        ACTIVE, LOCKED
+    }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
@@ -128,7 +138,7 @@ public class User implements UserDetails {
 
     @Override
     public boolean isAccountNonLocked() {
-        return true;
+        return this.status != UserStatus.LOCKED;
     }
 
     @Override

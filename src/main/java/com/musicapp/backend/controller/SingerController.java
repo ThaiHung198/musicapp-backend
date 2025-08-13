@@ -4,13 +4,13 @@ import com.musicapp.backend.dto.BaseResponse;
 import com.musicapp.backend.dto.PagedResponse;
 import com.musicapp.backend.dto.singer.AdminCreateSingerRequest;
 import com.musicapp.backend.dto.singer.CreateSingerRequest;
+import com.musicapp.backend.dto.singer.SingerDetailDto;
 import com.musicapp.backend.dto.singer.SingerDto;
 import com.musicapp.backend.entity.User;
 import com.musicapp.backend.service.SingerService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -20,6 +20,10 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import com.musicapp.backend.dto.singer.AdminUpdateSingerRequest;
+import org.springframework.web.bind.annotation.RequestPart;
+import com.musicapp.backend.entity.Singer;
 
 import java.util.List;
 
@@ -34,9 +38,10 @@ public class SingerController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BaseResponse<PagedResponse<SingerDto>>> getAllSingersForAdmin(
             @PageableDefault(sort = "id", direction = Sort.Direction.DESC) Pageable pageable,
-            @RequestParam(required = false) String search) {
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Singer.SingerStatus status) {
 
-        Page<SingerDto> singers = singerService.getAllSingersForAdmin(search, pageable);
+        Page<SingerDto> singers = singerService.getAllSingersForAdmin(search, pageable, status);
         PagedResponse<SingerDto> response = PagedResponse.of(singers.getContent(), singers);
         return ResponseEntity.ok(BaseResponse.success(response));
     }
@@ -83,18 +88,19 @@ public class SingerController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<BaseResponse<SingerDto>> getSingerById(@PathVariable Long id) {
-        SingerDto singer = singerService.getSingerById(id);
+    public ResponseEntity<BaseResponse<SingerDetailDto>> getSingerById(@PathVariable Long id) {
+        SingerDetailDto singer = singerService.getSingerDetailById(id);
         return ResponseEntity.ok(BaseResponse.success(singer));
     }
 
-    @PutMapping("/{id}")
+    @PutMapping(value = "/{id}", consumes = { MediaType.MULTIPART_FORM_DATA_VALUE })
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BaseResponse<SingerDto>> updateSinger(
             @PathVariable Long id,
-            @Valid @RequestBody CreateSingerRequest request) {
-        SingerDto singer = singerService.updateSinger(id, request);
-        return ResponseEntity.ok(BaseResponse.success("Singer updated successfully", singer));
+            @RequestPart("singerRequest") @Valid AdminUpdateSingerRequest request,
+            @RequestPart(value = "avatarFile", required = false) MultipartFile avatarFile) {
+        SingerDto updatedSinger = singerService.updateSinger(id, request, avatarFile);
+        return ResponseEntity.ok(BaseResponse.success("Cập nhật ca sĩ thành công!", updatedSinger));
     }
 
     @DeleteMapping("/{id}")

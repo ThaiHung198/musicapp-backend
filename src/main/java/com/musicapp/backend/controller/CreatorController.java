@@ -21,11 +21,6 @@ import org.springframework.web.bind.annotation.RestController;
 public class CreatorController {
 
     private final CreatorService creatorService;
-
-    /**
-     * Endpoint để creator xem thư viện của mình, bao gồm các yêu cầu và các bài hát đã đăng.
-     * Endpoint này hỗ trợ phân trang và lọc/tìm kiếm riêng cho từng danh sách.
-     */
     @GetMapping("/my-library")
     @PreAuthorize("hasRole('CREATOR')")
     public ResponseEntity<BaseResponse<MyLibraryDto>> getMyLibrary(

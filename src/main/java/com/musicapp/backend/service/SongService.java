@@ -21,6 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -38,6 +40,37 @@ public class SongService {
     private final SubscriptionService subscriptionService;
     private final SongMapper songMapper;
     private final FileStorageService fileStorageService;
+    private final LikeRepository likeRepository;
+    private final PlaylistRepository playlistRepository;
+
+
+    public List<SongDto> getAllSongsForPlaylist(User currentUser) {
+        List<Song> songs;
+        boolean isCreator = currentUser.getAuthorities().stream()
+                .anyMatch(grantedAuthority -> grantedAuthority.getAuthority().equals("ROLE_CREATOR"));
+
+        if (isCreator) {
+            songs = songRepository.findByCreatorIdAndStatusOrderByTitleAsc(currentUser.getId(), Song.SongStatus.APPROVED);
+        } else {
+            songs = songRepository.findByStatusOrderByTitleAsc(Song.SongStatus.APPROVED);
+        }
+
+        return songs.stream()
+                .map(song -> songMapper.toDto(song, currentUser))
+                .collect(Collectors.toList());
+    }
+
+    public List<SongDto> searchApprovedSongsForPlaylist(Long playlistId, String keyword, User currentUser) {
+        if (!playlistRepository.existsById(playlistId)) {
+            throw new ResourceNotFoundException("Không tìm thấy playlist với ID: " + playlistId);
+        }
+        Pageable pageable = PageRequest.of(0, 20);
+        Page<Song> songPage = songRepository.findApprovedSongsForPlaylist(playlistId, keyword, pageable);
+
+        return songPage.stream()
+                .map(song -> songMapper.toDto(song, currentUser))
+                .collect(Collectors.toList());
+    }
 
     public Page<SongDto> getAllSongsForAdmin(String keyword, Pageable pageable, User admin) {
         Page<Song> songPage;
@@ -52,6 +85,23 @@ public class SongService {
     public Page<SongDto> getAllApprovedSongs(Pageable pageable, User currentUser) {
         return songRepository.findByStatusOrderByCreatedAtDesc(Song.SongStatus.APPROVED, pageable)
                 .map(song -> songMapper.toDto(song, currentUser));
+    }
+
+    @Transactional
+    public SongDto toggleSongVisibility(Long songId, User admin) {
+        Song song = songRepository.findById(songId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy bài hát với ID: " + songId));
+
+        if (song.getStatus() == Song.SongStatus.APPROVED) {
+            song.setStatus(Song.SongStatus.HIDDEN);
+        } else if (song.getStatus() == Song.SongStatus.HIDDEN) {
+            song.setStatus(Song.SongStatus.APPROVED);
+        } else {
+            throw new BadRequestException("Chỉ có thể ẩn/hiện các bài hát đã được duyệt (APPROVED) hoặc đang bị ẩn (HIDDEN).");
+        }
+
+        Song updatedSong = songRepository.save(song);
+        return songMapper.toDto(updatedSong, admin);
     }
 
     public Page<SongDto> searchSongs(String keyword, Pageable pageable, User currentUser) {
@@ -83,6 +133,10 @@ public class SongService {
     }
 
     public Page<SongDto> getSongsBySinger(Long singerId, Pageable pageable, User currentUser) {
+        if (!singerRepository.existsById(singerId)) {
+            throw new ResourceNotFoundException("Không tìm thấy ca sĩ với ID: " + singerId);
+        }
+
         return songRepository.findBySingerIdAndApproved(singerId, pageable)
                 .map(song -> songMapper.toDto(song, currentUser));
     }
@@ -105,8 +159,18 @@ public class SongService {
 
     public List<SongDto> getMostLikedSongs(int limit, User currentUser) {
         Pageable pageable = PageRequest.of(0, limit);
-        return songRepository.findMostLikedSongs(pageable)
-                .stream()
+
+        List<Long> mostLikedSongIds = likeRepository.findMostLikedSongIds(pageable);
+
+        if (mostLikedSongIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<Song> songs = songRepository.findAllById(mostLikedSongIds);
+
+        songs.sort(Comparator.comparing(song -> mostLikedSongIds.indexOf(song.getId())));
+
+        return songs.stream()
                 .map(song -> songMapper.toDto(song, currentUser))
                 .collect(Collectors.toList());
     }
@@ -347,25 +411,7 @@ public class SongService {
                 .anyMatch(grantedAuthority -> grantedAuthority.getAuthority().equals("ROLE_ADMIN"));
     }
 
-    public SongDto getMyApprovedSongDetails(Long songId, String username) {
-        User currentUser = userRepository.findByEmail(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
-
-        Song song = songRepository.findByIdAndStatusWithDetails(songId, Song.SongStatus.APPROVED)
-                .orElseThrow(() -> new ResourceNotFoundException("Approved song not found with id: " + songId));
-
-        boolean isAdmin = currentUser.getRoles().stream()
-                .anyMatch(role -> role.getName().equals("ROLE_ADMIN"));
-        boolean isCreator = song.getCreator().getId().equals(currentUser.getId());
-
-        if (!isCreator && !isAdmin) {
-            throw new UnauthorizedException("You do not have permission to view details for this song.");
-        }
-
-        return songMapper.toDto(song, currentUser);
-    }
-
-    public PagedResponse<SongDto> getMyApprovedSongs(String username, String keyword, Pageable pageable) {
+    public PagedResponse<SongDto> getMyLibrary(String username, String keyword, Pageable pageable) {
         User creator = userRepository.findByEmail(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
 

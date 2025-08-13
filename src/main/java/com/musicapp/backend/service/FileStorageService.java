@@ -50,11 +50,35 @@ public class FileStorageService {
             Path finalPath = targetSubfolder.resolve(newFileName);
             Files.copy(file.getInputStream(), finalPath, StandardCopyOption.REPLACE_EXISTING);
 
-            // <<< SỬA LỖI: Luôn trả về đường dẫn bắt đầu bằng /uploads/ >>>
             return "/uploads/" + subfolder + "/" + newFileName;
 
         } catch (IOException ex) {
             throw new RuntimeException("Could not store file " + originalFileName + ". Please try again!", ex);
+        }
+    }
+
+    public void deleteFile(String filePath) {
+        if (filePath == null || filePath.isBlank()) {
+            return;
+        }
+
+        try {
+            // Loại bỏ phần /uploads/ ở đầu để có đường dẫn tương đối từ thư mục upload
+            String relativePath = filePath.startsWith("/uploads/") ? filePath.substring(9) : filePath;
+            Path targetPath = this.fileStorageLocation.resolve(relativePath).normalize();
+
+            // Kiểm tra bảo mật để đảm bảo file nằm trong thư mục uploads
+            if (!targetPath.startsWith(this.fileStorageLocation)) {
+                System.err.println("Attempted to delete a file outside the upload directory: " + filePath);
+                return;
+            }
+
+            if(Files.exists(targetPath)) {
+                Files.delete(targetPath);
+            }
+        } catch (IOException ex) {
+            // Log lỗi thay vì throw exception, vì việc không xóa được file cũ không nên làm hỏng toàn bộ request
+            System.err.println("Could not delete file: " + filePath + ". Reason: " + ex.getMessage());
         }
     }
 }

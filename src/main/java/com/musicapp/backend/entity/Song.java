@@ -3,15 +3,14 @@ package com.musicapp.backend.entity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
-
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.List;
 
 @Getter
 @Setter
@@ -46,6 +45,7 @@ public class Song {
     @Builder.Default
     private Boolean isPremium = false;
 
+    @Column(length = 20)
     @Enumerated(EnumType.STRING)
     @Builder.Default
     private SongStatus status = SongStatus.PENDING;
@@ -54,48 +54,36 @@ public class Song {
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 
-    // Relationships
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User creator;
 
     @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-            name = "song_singers",
-            joinColumns = @JoinColumn(name = "song_id"),
-            inverseJoinColumns = @JoinColumn(name = "singer_id")
-    )
+    @JoinTable(name = "song_singers", joinColumns = @JoinColumn(name = "song_id"), inverseJoinColumns = @JoinColumn(name = "singer_id"))
     @Builder.Default
-    private Set<Singer> singers = new HashSet<>(); // Khởi tạo bằng new HashSet<>()
+    private Set<Singer> singers = new HashSet<>();
 
     @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-            name = "song_tags",
-            joinColumns = @JoinColumn(name = "song_id"),
-            inverseJoinColumns = @JoinColumn(name = "tag_id")
-    )
+    @JoinTable(name = "song_tags", joinColumns = @JoinColumn(name = "song_id"), inverseJoinColumns = @JoinColumn(name = "tag_id"))
     @Builder.Default
-    private Set<Tag> tags = new HashSet<>(); // Khởi tạo bằng new HashSet<>()
+    private Set<Tag> tags = new HashSet<>();
 
     @ManyToMany(mappedBy = "songs", fetch = FetchType.LAZY)
     @Builder.Default
-    private Set<Playlist> playlists = new HashSet<>(); // Khởi tạo bằng new HashSet<>()
+    private Set<Playlist> playlists = new HashSet<>();
 
-    @OneToMany(mappedBy = "song", cascade = CascadeType.ALL, orphanRemoval = true)
-    @Builder.Default
-    private Set<Like> likes = new HashSet<>(); // Khởi tạo bằng new HashSet<>()
-
-    @OneToMany(mappedBy = "song", cascade = CascadeType.ALL, orphanRemoval = true)
-    @Builder.Default
-    private Set<Comment> comments = new HashSet<>(); // Khởi tạo bằng new HashSet<>()
-
-    // Link back to original submission
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "submission_id")
     private SongSubmission submission;
 
+    @OneToMany(mappedBy = "song", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<SongComment> comments;
+
     public enum SongStatus {
-        PENDING, APPROVED, REJECTED
+        PENDING,
+        APPROVED,
+        REJECTED,
+        HIDDEN
     }
 
     @Override
