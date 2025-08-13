@@ -33,12 +33,14 @@ public class SongController {
 
     private final SongService songService;
 
-    @GetMapping("/search-for-playlist")
+    @GetMapping("/playlist/{playlistId}/search")
     public ResponseEntity<BaseResponse<List<SongDto>>> searchForPlaylist(
-            @RequestParam String keyword,
+            @PathVariable Long playlistId, // Thêm @PathVariable để lấy ID từ URL
+            @RequestParam(defaultValue = "") String keyword, // Giữ nguyên
             @AuthenticationPrincipal User currentUser) {
-        List<SongDto> songs = songService.searchApprovedSongsForPlaylist(keyword, currentUser);
-        return ResponseEntity.ok(BaseResponse.success(songs));
+        // Gọi đến service với đủ 3 tham số
+        List<SongDto> songs = songService.searchApprovedSongsForPlaylist(playlistId, keyword, currentUser);
+        return ResponseEntity.ok(BaseResponse.success("Tìm kiếm bài hát trong playlist thành công.", songs));
     }
 
     // ... các endpoint khác giữ nguyên
