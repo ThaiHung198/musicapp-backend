@@ -33,17 +33,21 @@ public class SongController {
 
     private final SongService songService;
 
+    @GetMapping("/all-for-playlist")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<BaseResponse<List<SongDto>>> getAllSongsForPlaylist(@AuthenticationPrincipal User currentUser) {
+        List<SongDto> songs = songService.getAllSongsForPlaylist(currentUser);
+        return ResponseEntity.ok(BaseResponse.success("Lấy danh sách bài hát thành công.", songs));
+    }
+
     @GetMapping("/playlist/{playlistId}/search")
     public ResponseEntity<BaseResponse<List<SongDto>>> searchForPlaylist(
-            @PathVariable Long playlistId, // Thêm @PathVariable để lấy ID từ URL
-            @RequestParam(defaultValue = "") String keyword, // Giữ nguyên
+            @PathVariable Long playlistId,
+            @RequestParam(defaultValue = "") String keyword,
             @AuthenticationPrincipal User currentUser) {
-        // Gọi đến service với đủ 3 tham số
         List<SongDto> songs = songService.searchApprovedSongsForPlaylist(playlistId, keyword, currentUser);
         return ResponseEntity.ok(BaseResponse.success("Tìm kiếm bài hát trong playlist thành công.", songs));
     }
-
-    // ... các endpoint khác giữ nguyên
 
     @GetMapping("/admin/all")
     @PreAuthorize("hasRole('ADMIN')")

@@ -21,8 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.Collections; // THÊM IMPORT NÀY
-import java.util.Comparator; // THÊM IMPORT NÀY
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -40,9 +40,25 @@ public class SongService {
     private final SubscriptionService subscriptionService;
     private final SongMapper songMapper;
     private final FileStorageService fileStorageService;
-    private final LikeRepository likeRepository; // THÊM DEPENDENCY NÀY
+    private final LikeRepository likeRepository;
     private final PlaylistRepository playlistRepository;
 
+
+    public List<SongDto> getAllSongsForPlaylist(User currentUser) {
+        List<Song> songs;
+        boolean isCreator = currentUser.getAuthorities().stream()
+                .anyMatch(grantedAuthority -> grantedAuthority.getAuthority().equals("ROLE_CREATOR"));
+
+        if (isCreator) {
+            songs = songRepository.findByCreatorIdAndStatusOrderByTitleAsc(currentUser.getId(), Song.SongStatus.APPROVED);
+        } else {
+            songs = songRepository.findByStatusOrderByTitleAsc(Song.SongStatus.APPROVED);
+        }
+
+        return songs.stream()
+                .map(song -> songMapper.toDto(song, currentUser))
+                .collect(Collectors.toList());
+    }
 
     public List<SongDto> searchApprovedSongsForPlaylist(Long playlistId, String keyword, User currentUser) {
         if (!playlistRepository.existsById(playlistId)) {
@@ -73,21 +89,17 @@ public class SongService {
 
     @Transactional
     public SongDto toggleSongVisibility(Long songId, User admin) {
-        // 1. Tìm bài hát trong DB
         Song song = songRepository.findById(songId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy bài hát với ID: " + songId));
 
-        // 2. Kiểm tra và thay đổi trạng thái
         if (song.getStatus() == Song.SongStatus.APPROVED) {
             song.setStatus(Song.SongStatus.HIDDEN);
         } else if (song.getStatus() == Song.SongStatus.HIDDEN) {
             song.setStatus(Song.SongStatus.APPROVED);
         } else {
-            // Không cho phép ẩn/hiện các bài hát đang chờ duyệt hoặc đã bị từ chối
             throw new BadRequestException("Chỉ có thể ẩn/hiện các bài hát đã được duyệt (APPROVED) hoặc đang bị ẩn (HIDDEN).");
         }
 
-        // 3. Lưu lại và trả về kết quả
         Song updatedSong = songRepository.save(song);
         return songMapper.toDto(updatedSong, admin);
     }
@@ -145,36 +157,24 @@ public class SongService {
                 .collect(Collectors.toList());
     }
 
-    // --- BẮT ĐẦU SỬA LỖI ---
-    /**
-     * Lấy danh sách các bài hát được yêu thích nhất.
-     * Logic được viết lại để sử dụng LikeRepository.
-     */
     public List<SongDto> getMostLikedSongs(int limit, User currentUser) {
         Pageable pageable = PageRequest.of(0, limit);
 
-        // Bước 1: Lấy danh sách ID các bài hát được like nhiều nhất từ LikeRepository
         List<Long> mostLikedSongIds = likeRepository.findMostLikedSongIds(pageable);
 
         if (mostLikedSongIds.isEmpty()) {
             return Collections.emptyList();
         }
 
-        // Bước 2: Lấy thông tin chi tiết các bài hát từ danh sách ID đã có
         List<Song> songs = songRepository.findAllById(mostLikedSongIds);
 
-        // Bước 3: Sắp xếp lại danh sách 'songs' theo đúng thứ tự của 'mostLikedSongIds'
-        // vì findAllById không đảm bảo thứ tự.
         songs.sort(Comparator.comparing(song -> mostLikedSongIds.indexOf(song.getId())));
 
-        // Bước 4: Chuyển đổi sang DTO để trả về
         return songs.stream()
                 .map(song -> songMapper.toDto(song, currentUser))
                 .collect(Collectors.toList());
     }
-    // --- KẾT THÚC SỬA LỖI ---
 
-    // ... các phương thức còn lại không thay đổi ...
     @Transactional
     public SongDto createSongByAdmin(AdminCreateSongRequest request, MultipartFile audioFile, MultipartFile thumbnailFile, User admin) {
         String audioFilePath = fileStorageService.storeFile(audioFile, "audio");
