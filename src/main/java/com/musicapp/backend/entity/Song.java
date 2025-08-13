@@ -24,6 +24,7 @@ public class Song {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // ... các cột khác giữ nguyên ...
     @Column(nullable = false)
     private String title;
 
@@ -59,20 +60,12 @@ public class Song {
     private User creator;
 
     @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-            name = "song_singers",
-            joinColumns = @JoinColumn(name = "song_id"),
-            inverseJoinColumns = @JoinColumn(name = "singer_id")
-    )
+    @JoinTable(name = "song_singers", joinColumns = @JoinColumn(name = "song_id"), inverseJoinColumns = @JoinColumn(name = "singer_id"))
     @Builder.Default
     private Set<Singer> singers = new HashSet<>();
 
     @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-            name = "song_tags",
-            joinColumns = @JoinColumn(name = "song_id"),
-            inverseJoinColumns = @JoinColumn(name = "tag_id")
-    )
+    @JoinTable(name = "song_tags", joinColumns = @JoinColumn(name = "song_id"), inverseJoinColumns = @JoinColumn(name = "tag_id"))
     @Builder.Default
     private Set<Tag> tags = new HashSet<>();
 
@@ -80,14 +73,9 @@ public class Song {
     @Builder.Default
     private Set<Playlist> playlists = new HashSet<>();
 
-    // Giữ nguyên mối quan hệ với Like
-    @OneToMany(mappedBy = "song", cascade = CascadeType.ALL, orphanRemoval = true)
-    @Builder.Default
-    private Set<Like> likes = new HashSet<>();
-
     // --- BẮT ĐẦU SỬA LỖI ---
-    // ĐÃ XÓA HOÀN TOÀN MỐI QUAN HỆ VỚI COMMENT ĐỂ TRÁNH LỖI KHÓA NGOẠI
-    // Việc lấy comment sẽ được thực hiện qua CommentRepository
+    // ĐÃ XÓA MỐI QUAN HỆ VỚI LIKE ĐỂ PHÙ HỢP VỚI THIẾT KẾ ĐA HÌNH
+    // Việc lấy/đếm like sẽ được thực hiện qua LikeRepository.
     // --- KẾT THÚC SỬA LỖI ---
 
     @OneToOne(fetch = FetchType.LAZY)
@@ -101,6 +89,7 @@ public class Song {
         HIDDEN    // Đã duyệt, nhưng đang bị ẩn
     }
 
+    // ... các phương thức equals, hashCode, toString giữ nguyên ...
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
