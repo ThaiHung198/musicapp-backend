@@ -16,6 +16,7 @@ public class AdminUserViewDto {
     private String displayName;
     private String email;
     private String phoneNumber;
-    private String status; // "PREMIUM" hoặc "FREE"
+    private String premiumStatus; // "PREMIUM" hoặc "FREE"
+    private String status; // "ACTIVE" hoặc "LOCKED"
     private List<String> roles; // Ví dụ: ["ROLE_USER", "ROLE_CREATOR"]
 }

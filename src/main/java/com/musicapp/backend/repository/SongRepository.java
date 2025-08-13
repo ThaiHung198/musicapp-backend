@@ -25,6 +25,8 @@ public interface SongRepository extends JpaRepository<Song, Long> {
 
     List<Song> findByCreatorIdAndStatusOrderByTitleAsc(Long creatorId, Song.SongStatus status);
 
+    List<Song> findByCreatorId(Long creatorId);
+
     @Query("SELECT s FROM Song s WHERE s.status = :status AND " +
             "(LOWER(s.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
             "EXISTS (SELECT 1 FROM s.singers singer WHERE LOWER(singer.name) LIKE LOWER(CONCAT('%', :keyword, '%'))))")

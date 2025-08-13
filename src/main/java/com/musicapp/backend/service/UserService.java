@@ -2,13 +2,12 @@ package com.musicapp.backend.service;
 
 import com.musicapp.backend.dto.PageInfo;
 import com.musicapp.backend.dto.PagedResponse;
-import com.musicapp.backend.dto.user.AdminUserViewDto;
-import com.musicapp.backend.dto.user.ChangePasswordRequest;
-import com.musicapp.backend.dto.user.UpdateProfileRequest;
-import com.musicapp.backend.dto.user.UserProfileDto;
+import com.musicapp.backend.dto.creator.CreatorDetailDto;
+import com.musicapp.backend.dto.user.*;
 import com.musicapp.backend.entity.User;
 import com.musicapp.backend.exception.BadRequestException;
 import com.musicapp.backend.exception.ResourceNotFoundException;
+import com.musicapp.backend.mapper.SongMapper;
 import com.musicapp.backend.mapper.UserMapper;
 import com.musicapp.backend.repository.RoleRepository;
 import com.musicapp.backend.repository.SongRepository;
@@ -21,13 +20,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import com.musicapp.backend.dto.creator.CreatorViewDto; // <<< IMPORT
-import com.musicapp.backend.entity.Song; // <<< IMPORT
+import com.musicapp.backend.dto.creator.CreatorViewDto;
+import com.musicapp.backend.entity.Song;
 import com.musicapp.backend.entity.Role;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.musicapp.backend.repository.PlaylistRepository;
@@ -45,6 +45,7 @@ public class UserService {
     private final RoleRepository roleRepository;
     private final SongRepository songRepository;
     private final PlaylistRepository playlistRepository;
+    private final SongMapper songMapper;
 
     @Transactional(readOnly = true)
     public UserProfileDto getCurrentUserProfile(User currentUser) {
@@ -54,37 +55,50 @@ public class UserService {
     }
 
     public PagedResponse<AdminUserViewDto> getAllUsersForAdmin(String search, Pageable pageable) {
-        Page<User> userPage;
-        String keyword = (search == null) ? "" : search; // Đảm bảo keyword không bị null
+        String keyword = (search == null) ? "" : search.trim();
 
-        // Gọi phương thức mới để chỉ lấy user thường
-        userPage = userRepository.findAppUsers(keyword, pageable);
+        Page<User> userPage = userRepository.findAppUsers(keyword, pageable);
 
-        // 2. Chuyển đổi Page<User> thành Page<AdminUserViewDto>
         Page<AdminUserViewDto> dtoPage = userPage.map(user -> {
-            // Xác định trạng thái cho mỗi user
             boolean isPremium = subscriptionService.hasActivePremiumSubscription(user.getId());
-            String status = isPremium ? "PREMIUM" : "FREE";
-
-            // Dùng mapper để tạo DTO
-            return userMapper.toAdminUserViewDto(user, status);
+            return userMapper.toAdminUserViewDto(user, isPremium);
         });
 
-        // 3. Trả về kết quả dạng PagedResponse
         return PagedResponse.of(dtoPage.getContent(), dtoPage);
     }
 
-    public PagedResponse<CreatorViewDto> getAllCreators(String search, Pageable pageable) {
-        // 1. Lấy role CREATOR
+    @Transactional
+    public AdminUserViewDto updateUserByAdmin(Long userId, UpdateUserByAdminRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng với ID: " + userId));
+
         Role creatorRole = roleRepository.findByName("ROLE_CREATOR")
                 .orElseThrow(() -> new ResourceNotFoundException("Vai trò 'ROLE_CREATOR' không tồn tại."));
 
-        // 2. Lấy danh sách user là creator từ DB
-        String keyword = (search == null) ? "" : search;
-        Page<User> creatorPage = userRepository.findByRoleAndKeyword(creatorRole, keyword, pageable);
+        boolean wasCreator = user.getRoles().contains(creatorRole);
+        boolean isNowCreator = request.getRoles().contains("ROLE_CREATOR");
 
-        // 3. Chuyển đổi sang DTO
-        List<CreatorViewDto> dtos = creatorPage.getContent().stream().map(creator -> {
+        if (!wasCreator && isNowCreator) {
+            playlistRepository.deleteByCreatorIdAndVisibility(user.getId(), Playlist.PlaylistVisibility.PRIVATE);
+        }
+
+        Set<Role> newRoles = request.getRoles().stream()
+                .map(roleName -> roleRepository.findByName(roleName)
+                        .orElseThrow(() -> new BadRequestException("Vai trò không hợp lệ: " + roleName)))
+                .collect(Collectors.toSet());
+        user.setRoles(newRoles);
+
+        User updatedUser = userRepository.save(user);
+
+        boolean isPremium = subscriptionService.hasActivePremiumSubscription(updatedUser.getId());
+        return userMapper.toAdminUserViewDto(updatedUser, isPremium);
+    }
+
+    public PagedResponse<CreatorViewDto> getAllCreators(String search, Pageable pageable) {
+        String keyword = (search == null) ? "" : search;
+        Page<User> creatorPage = userRepository.findByRoleNameAndKeyword("ROLE_CREATOR", keyword, pageable);
+
+        Page<CreatorViewDto> dtoPage = creatorPage.map(creator -> {
             CreatorViewDto dto = new CreatorViewDto();
             dto.setId(creator.getId());
             dto.setDisplayName(creator.getDisplayName());
@@ -95,33 +109,42 @@ public class UserService {
             dto.setApprovedSongCount(count);
 
             return dto;
-        }).collect(Collectors.toList());
+        });
 
-        // 4. Trả về kết quả
-        return new PagedResponse<>(dtos, new PageInfo(creatorPage));
+        return PagedResponse.of(dtoPage.getContent(), dtoPage);
+    }
+
+    @Transactional(readOnly = true)
+    public CreatorDetailDto getCreatorDetails(Long creatorId) {
+        User creator = userRepository.findById(creatorId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy nhà phát triển với ID: " + creatorId));
+
+        Role creatorRole = roleRepository.findByName("ROLE_CREATOR")
+                .orElseThrow(() -> new ResourceNotFoundException("Vai trò 'ROLE_CREATOR' không tồn tại."));
+        if (!creator.getRoles().contains(creatorRole)) {
+            throw new BadRequestException("Người dùng này không phải là một Creator.");
+        }
+
+        List<Song> songs = songRepository.findByCreatorId(creatorId);
+
+        return userMapper.toCreatorDetailDto(creator, songs);
     }
 
     @Transactional
     public UserProfileDto promoteUserToCreator(Long userId) {
-        // 1. Lấy thông tin role CREATOR từ DB
         Role creatorRole = roleRepository.findByName("ROLE_CREATOR")
                 .orElseThrow(() -> new ResourceNotFoundException("Vai trò 'ROLE_CREATOR' không tồn tại trong database."));
 
-        // 2. Tìm user cần nâng cấp
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng với ID: " + userId));
 
-        // 3. Kiểm tra xem người dùng đã là Creator chưa
         boolean isAlreadyCreator = user.getRoles().contains(creatorRole);
         if (isAlreadyCreator) {
-            // Nếu đã là Creator, báo lỗi và không làm gì cả
             throw new BadRequestException("Người dùng này đã là Creator.");
         }
 
-        // Trước khi cấp vai trò, xóa tất cả playlist cá nhân của họ
         playlistRepository.deleteByCreatorIdAndVisibility(user.getId(), Playlist.PlaylistVisibility.PRIVATE);
 
-        // 4. Nếu chưa, cấp vai trò Creator
         user.getRoles().add(creatorRole);
 
         User updatedUser = userRepository.save(user);
