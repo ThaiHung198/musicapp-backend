@@ -22,7 +22,7 @@ public interface SongRepository extends JpaRepository<Song, Long> {
     Page<Song> findByCreatorIdOrderByCreatedAtDesc(Long creatorId, Pageable pageable);
 
     // Find by status
-    Page<Song> findByStatusOrderByCreatedAtDesc(Song.SongStatus status, Pageable pageable);
+    Page<Song> findByStatusderByCreatedAtDesc(Song.SongStatus status, Pageable pageable);
 
     // Search functionality
     @Query("SELECT s FROM Song s WHERE s.status = :status AND " +
@@ -101,4 +101,6 @@ public interface SongRepository extends JpaRepository<Song, Long> {
             @Param("keyword") String keyword,
             Pageable pageable
     );
+
+    long countByCreatorIdAndStatus(Long creatorId, Song.SongStatus status);
 }
