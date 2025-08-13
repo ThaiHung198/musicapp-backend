@@ -82,4 +82,6 @@ public interface SongRepository extends JpaRepository<Song, Long> {
 
     @Query("SELECT s FROM Song s WHERE s.status = 'APPROVED' AND LOWER(s.title) LIKE LOWER(CONCAT('%', :keyword, '%'))")
     List<Song> findApprovedSongsForPlaylist(@Param("keyword") String keyword, Pageable pageable);
+
+    long countByCreatorIdAndStatus(Long creatorId, Song.SongStatus status);
 }
