@@ -37,8 +37,7 @@ public interface PlaylistRepository extends JpaRepository<Playlist, Long> {
     @Query("SELECT COUNT(p) FROM Playlist p WHERE p.visibility = 'PUBLIC'")
     long countPublicPlaylists();
 
-    Page<Playlist> findByVisibility(Playlist.PlaylistVisibility visibility, Pageable pageable);
-
+    Page<Playlist> findByVisibilityOrderByListenCountDesc(Playlist.PlaylistVisibility visibility, Pageable pageable);
     @Modifying
     void deleteByCreatorIdAndVisibility(Long creatorId, PlaylistVisibility visibility);
 
@@ -46,4 +45,8 @@ public interface PlaylistRepository extends JpaRepository<Playlist, Long> {
 
     @Query("SELECT p FROM Playlist p JOIN p.creator u JOIN u.roles r WHERE r.name = 'ROLE_CREATOR'")
     List<Playlist> findPlaylistsByCreators();
+
+    @Modifying
+    @Query("UPDATE Playlist p SET p.listenCount = p.listenCount + 1 WHERE p.id = :playlistId")
+    void incrementListenCount(@Param("playlistId") Long playlistId);
 }

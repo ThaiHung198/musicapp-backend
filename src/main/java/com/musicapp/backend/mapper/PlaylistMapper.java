@@ -28,6 +28,7 @@ public class PlaylistMapper {
                 .thumbnailPath(playlist.getThumbnailPath())
                 .visibility(playlist.getVisibility().name())
                 .createdAt(playlist.getCreatedAt())
+                .listenCount(playlist.getListenCount()) // Thêm listenCount
                 .creatorId(playlist.getCreator() != null ? playlist.getCreator().getId() : null)
                 .creatorName(playlist.getCreator() != null ? playlist.getCreator().getDisplayName() : "Hệ thống")
                 .songCount(playlist.getSongs() != null ? playlist.getSongs().size() : 0)
@@ -61,6 +62,7 @@ public class PlaylistMapper {
                 .thumbnailPath(playlist.getThumbnailPath())
                 .visibility(playlist.getVisibility().name())
                 .createdAt(playlist.getCreatedAt())
+                .listenCount(playlist.getListenCount()) // Thêm listenCount
                 .creatorId(playlist.getCreator() != null ? playlist.getCreator().getId() : null)
                 .creatorName(playlist.getCreator() != null ? playlist.getCreator().getDisplayName() : "Hệ thống")
                 .songCount(playlist.getSongs() != null ? playlist.getSongs().size() : 0)

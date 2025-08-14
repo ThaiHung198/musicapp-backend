@@ -283,7 +283,17 @@ public class PlaylistService {
     }
 
     public Page<PlaylistDto> getAllPublicPlaylists(Pageable pageable, User currentUser) {
-        Page<Playlist> playlistPage = playlistRepository.findByVisibility(PlaylistVisibility.PUBLIC, pageable);
+        Page<Playlist> playlistPage = playlistRepository.findByVisibilityOrderByListenCountDesc(PlaylistVisibility.PUBLIC, pageable);
         return playlistPage.map(p -> playlistMapper.toDto(p, currentUser));
+    }
+
+    @Transactional
+    public void incrementListenCount(Long playlistId) {
+        Playlist playlist = playlistRepository.findById(playlistId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy playlist với ID: " + playlistId));
+
+        if (playlist.getVisibility() == PlaylistVisibility.PUBLIC) {
+            playlistRepository.incrementListenCount(playlistId);
+        }
     }
 }

@@ -113,4 +113,11 @@ public class PlaylistController {
         AdminPlaylistManagementDto data = playlistService.getPlaylistsForAdminManagement(admin);
         return ResponseEntity.ok(BaseResponse.success(data));
     }
+
+    @PostMapping("/{id}/increment-listen-count")
+    @PreAuthorize("permitAll()")
+    public ResponseEntity<BaseResponse<Void>> incrementListenCount(@PathVariable Long id) {
+        playlistService.incrementListenCount(id);
+        return ResponseEntity.ok(BaseResponse.success("Playlist listen count incremented.", null));
+    }
 }

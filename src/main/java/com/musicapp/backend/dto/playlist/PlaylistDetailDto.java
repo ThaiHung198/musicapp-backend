@@ -24,4 +24,5 @@ public class PlaylistDetailDto {
     private boolean canEdit;
     private boolean canDelete;
     private boolean canToggleVisibility;
+    private Long listenCount;
 }

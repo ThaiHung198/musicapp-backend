@@ -36,6 +36,10 @@ public class Playlist {
     @Column(name = "visibility", length = 20)
     private PlaylistVisibility visibility = PlaylistVisibility.PRIVATE;
 
+    @Column(name = "listen_count")
+    @Builder.Default
+    private Long listenCount = 0L;
+
     @Column(name = "created_at")
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
