@@ -22,6 +22,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -99,7 +100,7 @@ public class PlaylistService {
         List<Playlist> playlists = playlistRepository.findByCreatorId(currentUser.getId());
         return playlists.stream()
                 .map(p -> playlistMapper.toDto(p, currentUser))
-                .toList();
+                .collect(Collectors.toList());
     }
 
     public AdminPlaylistManagementDto getPlaylistsForAdminManagement(User admin) {
@@ -108,7 +109,7 @@ public class PlaylistService {
         List<Playlist> creatorPlaylistsRaw = playlistRepository.findPlaylistsByCreators();
         List<PlaylistDto> creatorPlaylists = creatorPlaylistsRaw.stream()
                 .map(p -> playlistMapper.toDto(p, admin))
-                .toList();
+                .collect(Collectors.toList());
 
         return AdminPlaylistManagementDto.builder()
                 .adminPlaylists(adminPlaylists)
@@ -229,7 +230,10 @@ public class PlaylistService {
             return processedSongs;
         }
 
-        List<Song> foundSongs = songRepository.findAllById(songIds);
+        // --- BẮT ĐẦU SỬA ĐỔI ---
+        List<Song> foundSongs = songRepository.findByIdInWithCreator(songIds);
+        // --- KẾT THÚC SỬA ĐỔI ---
+
         if (foundSongs.size() != songIds.size()) {
             throw new ResourceNotFoundException("Một hoặc nhiều bài hát không tồn tại.");
         }
@@ -240,7 +244,7 @@ public class PlaylistService {
             }
 
             if (isCreator && !isAdmin) {
-                if (!song.getCreator().getId().equals(currentUser.getId())) {
+                if (song.getCreator() == null || !song.getCreator().getId().equals(currentUser.getId())) {
                     throw new UnauthorizedException("Creator chỉ có thể thêm bài hát do chính mình tạo (ID: " + song.getId() + ").");
                 }
             }
@@ -283,7 +287,7 @@ public class PlaylistService {
     }
 
     public Page<PlaylistDto> getAllPublicPlaylists(Pageable pageable, User currentUser) {
-        Page<Playlist> playlistPage = playlistRepository.findByVisibilityOrderByListenCountDesc(PlaylistVisibility.PUBLIC, pageable);
+        Page<Playlist> playlistPage = playlistRepository.findByVisibilityOrderByListenCountDesc(Playlist.PlaylistVisibility.PUBLIC, pageable);
         return playlistPage.map(p -> playlistMapper.toDto(p, currentUser));
     }
 

@@ -11,11 +11,15 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface SongRepository extends JpaRepository<Song, Long> {
+
+    @Query("SELECT s FROM Song s JOIN FETCH s.creator WHERE s.id IN :ids")
+    List<Song> findByIdInWithCreator(@Param("ids") Collection<Long> ids);
 
     Optional<Song> findByIdAndStatus(Long id, Song.SongStatus status);
 
