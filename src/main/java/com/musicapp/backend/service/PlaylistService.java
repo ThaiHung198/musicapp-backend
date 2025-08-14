@@ -1,4 +1,3 @@
-// src/main/java/com/musicapp/backend/service/PlaylistService.java
 package com.musicapp.backend.service;
 
 import com.musicapp.backend.dto.playlist.*;
@@ -6,11 +5,9 @@ import com.musicapp.backend.entity.Playlist;
 import com.musicapp.backend.entity.Playlist.PlaylistVisibility;
 import com.musicapp.backend.entity.Song;
 import com.musicapp.backend.entity.User;
-
 import com.musicapp.backend.exception.BadRequestException;
 import com.musicapp.backend.exception.ResourceNotFoundException;
 import com.musicapp.backend.exception.UnauthorizedException;
-
 import com.musicapp.backend.mapper.PlaylistMapper;
 import com.musicapp.backend.repository.PlaylistRepository;
 import com.musicapp.backend.repository.SongRepository;
@@ -28,6 +25,7 @@ import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class PlaylistService {
 
     private final PlaylistRepository playlistRepository;
@@ -62,7 +60,6 @@ public class PlaylistService {
         return playlistMapper.toDto(savedPlaylist, currentUser);
     }
 
-    @Transactional(readOnly = true)
     public PlaylistDetailDto getPlaylistById(Long playlistId, User currentUser) {
         Playlist playlist = playlistRepository.findById(playlistId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy playlist với ID: " + playlistId));
@@ -79,7 +76,6 @@ public class PlaylistService {
                 throw new UnauthorizedException("Bạn không có quyền xem playlist này.");
             }
         }
-
         else if (visibility == PlaylistVisibility.HIDDEN) {
             if (currentUser == null) {
                 throw new UnauthorizedException("Bạn phải đăng nhập để xem playlist này.");
@@ -100,9 +96,24 @@ public class PlaylistService {
 
 
     public List<PlaylistDto> getMyPlaylists(User currentUser) {
-        List<PlaylistDto> playlists = playlistRepository.findPlaylistsByCreator(currentUser);
-        playlists.forEach(p -> p.setCreatorName(currentUser.getUsername()));
-        return playlists;
+        List<Playlist> playlists = playlistRepository.findByCreatorId(currentUser.getId());
+        return playlists.stream()
+                .map(p -> playlistMapper.toDto(p, currentUser))
+                .toList();
+    }
+
+    public AdminPlaylistManagementDto getPlaylistsForAdminManagement(User admin) {
+        List<PlaylistDto> adminPlaylists = getMyPlaylists(admin);
+
+        List<Playlist> creatorPlaylistsRaw = playlistRepository.findPlaylistsByCreators();
+        List<PlaylistDto> creatorPlaylists = creatorPlaylistsRaw.stream()
+                .map(p -> playlistMapper.toDto(p, admin))
+                .toList();
+
+        return AdminPlaylistManagementDto.builder()
+                .adminPlaylists(adminPlaylists)
+                .creatorPlaylists(creatorPlaylists)
+                .build();
     }
 
     @Transactional
@@ -184,7 +195,8 @@ public class PlaylistService {
 
         playlist.getSongs().addAll(songsToAdd);
 
-        return playlistMapper.toDto(playlist, currentUser);
+        Playlist updatedPlaylist = playlistRepository.save(playlist);
+        return playlistMapper.toDto(updatedPlaylist, currentUser);
     }
 
     @Transactional
@@ -192,9 +204,7 @@ public class PlaylistService {
         Playlist playlist = playlistRepository.findById(playlistId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy playlist với ID: " + playlistId));
 
-        boolean isOwner = (playlist.getCreator() != null && playlist.getCreator().getId().equals(currentUser.getId())) ||
-                (playlist.getCreator() == null && currentUser.getAuthorities().stream()
-                        .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN")));
+        boolean isOwner = (playlist.getCreator() != null && playlist.getCreator().getId().equals(currentUser.getId()));
 
         if (!isOwner) {
             throw new UnauthorizedException("Bạn không có quyền xóa bài hát khỏi playlist này.");
@@ -209,7 +219,8 @@ public class PlaylistService {
             throw new ResourceNotFoundException("Bài hát với ID: " + songId + " không có trong playlist này.");
         }
 
-        return playlistMapper.toDto(playlist, currentUser);
+        Playlist updatedPlaylist = playlistRepository.save(playlist);
+        return playlistMapper.toDto(updatedPlaylist, currentUser);
     }
 
     private Set<Song> processSongIdsForPlaylist(List<Long> songIds, User currentUser, boolean isAdmin, boolean isCreator) {
@@ -244,7 +255,7 @@ public class PlaylistService {
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy playlist với ID: " + playlistId));
 
         if (playlist.getVisibility() == PlaylistVisibility.PRIVATE) {
-            throw new BadRequestException("Không thể ẩn/hiện playlist PRIVATE.");
+            throw new BadRequestException("Không thể ẩn/hiện playlist cá nhân (PRIVATE).");
         }
 
         boolean isAdmin = currentUser.getAuthorities().stream()
@@ -267,7 +278,8 @@ public class PlaylistService {
             playlist.setVisibility(PlaylistVisibility.PUBLIC);
         }
 
-        return playlistMapper.toDto(playlist, currentUser);
+        Playlist updatedPlaylist = playlistRepository.save(playlist);
+        return playlistMapper.toDto(updatedPlaylist, currentUser);
     }
 
     public Page<PlaylistDto> getAllPublicPlaylists(Pageable pageable, User currentUser) {

@@ -14,22 +14,8 @@ import com.musicapp.backend.entity.Playlist.PlaylistVisibility;
 import org.springframework.data.jpa.repository.Modifying;
 import java.util.List;
 
-import java.util.List;
-
 @Repository
 public interface PlaylistRepository extends JpaRepository<Playlist, Long> {
-
-    // --- BẮT ĐẦU SỬA LỖI ---
-    // Đã xóa "CAST(SIZE(p.likes) AS long)" và "CAST(SIZE(p.comments) AS long)" khỏi câu truy vấn
-    // vì các thuộc tính này không còn được map trong Entity nữa.
-    @Query("SELECT new com.musicapp.backend.dto.playlist.PlaylistDto(" +
-            "p.id, p.name, p.thumbnailPath, p.visibility, p.createdAt, " +
-            "p.creator.id, " +
-            "CAST(SIZE(p.songs) AS long)) " + // Chỉ còn lại songCount
-            "FROM Playlist p WHERE p.creator = :creator ORDER BY p.createdAt DESC")
-    List<PlaylistDto> findPlaylistsByCreator(@Param("creator") User creator);
-    // --- KẾT THÚC SỬA LỖI ---
-
 
     Page<Playlist> findByCreatorIdOrderByCreatedAtDesc(Long creatorId, Pageable pageable);
 
@@ -43,10 +29,6 @@ public interface PlaylistRepository extends JpaRepository<Playlist, Long> {
             "LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')) ORDER BY p.createdAt DESC")
     Page<Playlist> searchPublicPlaylists(@Param("keyword") String keyword, Pageable pageable);
 
-    // --- BẮT ĐẦU SỬA LỖI ---
-    // Đã xóa phương thức findMostLikedPlaylists vì Playlist entity không còn thuộc tính 'likes' nữa.
-    // --- KẾT THÚC SỬA LỖI ---
-
     @Query("SELECT p FROM Playlist p WHERE p.visibility = 'PUBLIC' ORDER BY p.createdAt DESC")
     List<Playlist> findRecentlyCreatedPublicPlaylists(Pageable pageable);
 
@@ -59,4 +41,9 @@ public interface PlaylistRepository extends JpaRepository<Playlist, Long> {
 
     @Modifying
     void deleteByCreatorIdAndVisibility(Long creatorId, PlaylistVisibility visibility);
+
+    List<Playlist> findByCreatorId(Long creatorId);
+
+    @Query("SELECT p FROM Playlist p JOIN p.creator u JOIN u.roles r WHERE r.name = 'ROLE_CREATOR'")
+    List<Playlist> findPlaylistsByCreators();
 }

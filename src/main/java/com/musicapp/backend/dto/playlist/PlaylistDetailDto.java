@@ -21,4 +21,7 @@ public class PlaylistDetailDto {
     private long likeCount;
     private boolean isLikedByCurrentUser;
     private List<SongDto> songs;
+    private boolean canEdit;
+    private boolean canDelete;
+    private boolean canToggleVisibility;
 }
