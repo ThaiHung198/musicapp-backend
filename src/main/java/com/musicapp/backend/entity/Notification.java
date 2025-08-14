@@ -34,7 +34,7 @@ public class Notification {
     private User actor;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 50)
     private NotificationType type; // LIKE, COMMENT
 
     @Column(columnDefinition = "TEXT")
@@ -57,8 +57,8 @@ public class Notification {
         PLAYLIST_LIKE,
         SONG_COMMENT,
         PLAYLIST_COMMENT,
-        // Có thể mở rộng sau này
         SUBMISSION_APPROVED,
-        SUBMISSION_REJECTED
+        SUBMISSION_REJECTED,
+        NEW_SUBMISSION_PENDING
     }
 }
