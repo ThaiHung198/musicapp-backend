@@ -121,7 +121,6 @@ public class PlaylistController {
         return ResponseEntity.ok(BaseResponse.success("Playlist listen count incremented.", null));
     }
 
-    // Lấy dữ liệu playlist được nghe nhiều nhất
     @GetMapping("/top-listened")
     @PreAuthorize("permitAll()")
     public ResponseEntity<BaseResponse<List<PlaylistDto>>> getTopListenedPlaylists(

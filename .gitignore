@@ -33,7 +33,8 @@ build/
 .vscode/
 mvnw.cmd
 
-.env
+.env.example
 uploads
 resources
+.env
 
