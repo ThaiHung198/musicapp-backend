@@ -44,7 +44,8 @@ public class SecurityConfiguration {
                                 "/api/v1/auth/**",                 // Đăng ký, đăng nhập
                                 "/v3/api-docs/**",                 // Swagger UI
                                 "/swagger-ui/**",                  // Swagger UI
-                                "/api/v1/transactions/momo-ipn"    // MoMo IPN Callback
+                                "/api/v1/transactions/momo-ipn", // MoMo IPN Callback
+                                "/api/v1/transactions/vnpay-payment-result" // Endpoint của VNPay
 
                         ).permitAll()
                         // Cho phép preflight request của CORS
