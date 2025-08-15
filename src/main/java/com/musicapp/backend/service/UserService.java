@@ -24,6 +24,7 @@ import com.musicapp.backend.dto.creator.CreatorViewDto;
 import com.musicapp.backend.entity.Song;
 import com.musicapp.backend.entity.Role;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
@@ -186,7 +187,9 @@ public class UserService {
         } else {
             currentUser.setGender(null);
         }
-
+        if (request.getDateOfBirth() != null && request.getDateOfBirth().isAfter(LocalDate.now())) {
+            throw new BadRequestException("Ngày sinh không được ở trong tương lai.");
+        }
         currentUser.setDateOfBirth(request.getDateOfBirth());
         currentUser.setUpdatedAt(LocalDateTime.now());
 
