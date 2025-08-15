@@ -10,10 +10,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1/users")
@@ -55,12 +57,13 @@ public class UserController {
         return ResponseEntity.ok(BaseResponse.success("Lấy thông tin người dùng thành công.", userProfile));
     }
 
-    @PutMapping("/me")
+    @PutMapping(value = "/me", consumes = { MediaType.MULTIPART_FORM_DATA_VALUE })
     public ResponseEntity<BaseResponse<UserProfileDto>> updateCurrentUserProfile(
             @AuthenticationPrincipal User currentUser,
-            @Valid @RequestBody UpdateProfileRequest request
+            @RequestPart("profileData") @Valid UpdateProfileRequest request,
+            @RequestPart(value = "avatar", required = false) MultipartFile avatarFile
     ) {
-        UserProfileDto updatedUserProfile = userService.updateCurrentUserProfile(currentUser, request);
+        UserProfileDto updatedUserProfile = userService.updateCurrentUserProfile(currentUser, request, avatarFile);
         return ResponseEntity.ok(BaseResponse.success("Cập nhật thông tin thành công.", updatedUserProfile));
     }
 
