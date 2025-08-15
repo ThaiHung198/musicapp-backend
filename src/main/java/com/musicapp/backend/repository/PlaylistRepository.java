@@ -49,4 +49,7 @@ public interface PlaylistRepository extends JpaRepository<Playlist, Long> {
     @Modifying
     @Query("UPDATE Playlist p SET p.listenCount = p.listenCount + 1 WHERE p.id = :playlistId")
     void incrementListenCount(@Param("playlistId") Long playlistId);
+
+    @Query("SELECT p FROM Playlist p WHERE p.visibility = 'PUBLIC' ORDER BY p.listenCount DESC")
+    List<Playlist> findTopListenedPublicPlaylists(Pageable pageable);
 }

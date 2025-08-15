@@ -22,10 +22,7 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -41,6 +38,7 @@ public class SubmissionService {
     private final SubmissionTagsRepository submissionTagsRepository;
     private final SubmissionMapper submissionMapper;
     private final FileStorageService fileStorageService;
+    private final NotificationRepository notificationRepository;
 
     @Transactional
     public SubmissionDto createSubmission(CreateSubmissionRequest request, MultipartFile audioFile, MultipartFile thumbnailFile, List<MultipartFile> newSingerAvatars, String username) {
@@ -81,6 +79,8 @@ public class SubmissionService {
         }
 
         SongSubmission savedSubmission = submissionRepository.save(submission);
+
+        notifyAdminsOfNewSubmission(savedSubmission, creator);
 
         return submissionMapper.toDto(savedSubmission, creator);
     }
@@ -354,6 +354,8 @@ public class SubmissionService {
         submission.setReviewer(reviewer);
         submission.setReviewDate(LocalDateTime.now());
 
+        User creator = submission.getCreator();
+
         if ("APPROVE".equalsIgnoreCase(request.getAction())) {
             submission.setStatus(SongSubmission.SubmissionStatus.APPROVED);
 
@@ -389,6 +391,15 @@ public class SubmissionService {
                         singerRepository.save(singer);
                     });
 
+            Notification notification = Notification.builder()
+                    .recipient(creator) // Người nhận là creator
+                    .actor(reviewer)    // Người thực hiện là admin/reviewer
+                    .type(Notification.NotificationType.SUBMISSION_APPROVED)
+                    .message("Yêu cầu của bạn cho bài hát '" + submission.getTitle() + "' đã được duyệt.")
+                    .link("/song/" + savedSong.getId()) // Link đến bài hát vừa được tạo
+                    .build();
+            notificationRepository.save(notification);
+
         } else if ("REJECT".equalsIgnoreCase(request.getAction())) {
             submission.setStatus(SongSubmission.SubmissionStatus.REJECTED);
             submission.setRejectionReason(request.getRejectionReason());
@@ -400,6 +411,16 @@ public class SubmissionService {
                         singer.setStatus(Singer.SingerStatus.REJECTED);
                         singerRepository.save(singer);
                     });
+
+            Notification notification = Notification.builder()
+                    .recipient(creator)
+                    .actor(reviewer)
+                    .type(Notification.NotificationType.SUBMISSION_REJECTED)
+                    .message("Yêu cầu của bạn cho bài hát '" + submission.getTitle() + "' đã bị từ chối. Lý do: " + request.getRejectionReason())
+                    .link("/creator/my-library?tab=submissions") // Link đến trang quản lý submission của creator
+                    .build();
+            notificationRepository.save(notification);
+
         } else {
             throw new BadRequestException("Invalid review action. Must be APPROVE or REJECT");
         }
@@ -445,5 +466,35 @@ public class SubmissionService {
                 "rejectedSubmissions", submissionRepository.countByStatus(SongSubmission.SubmissionStatus.REJECTED),
                 "reviewingSubmissions", submissionRepository.countByStatus(SongSubmission.SubmissionStatus.REVIEWING)
         );
+    }
+
+    private void notifyAdminsOfNewSubmission(SongSubmission submission, User creator) {
+        // 1. Tìm tất cả người dùng có vai trò là ADMIN
+        List<User> admins = userRepository.findByRoleNameAndKeyword("ROLE_ADMIN", "", Pageable.unpaged()).getContent();
+
+        if (admins.isEmpty()) {
+            // Có thể log ra một cảnh báo nếu không tìm thấy admin nào
+            System.out.println("Warning: No admins found to notify for new submission ID: " + submission.getId());
+            return;
+        }
+
+        // 2. Tạo một danh sách các đối tượng Notification
+        List<Notification> notifications = new ArrayList<>();
+        String message = creator.getDisplayName() + " vừa gửi một bài hát mới để duyệt: " + submission.getTitle();
+        String link = "/admin/submissions/" + submission.getId(); // Link đến trang chi tiết submission cho admin
+
+        for (User admin : admins) {
+            Notification notification = Notification.builder()
+                    .recipient(admin) // Người nhận là admin
+                    .actor(creator)   // Người thực hiện hành động là creator
+                    .type(Notification.NotificationType.NEW_SUBMISSION_PENDING)
+                    .message(message)
+                    .link(link)
+                    .build();
+            notifications.add(notification);
+        }
+
+        // 3. Lưu tất cả thông báo vào CSDL trong một lần
+        notificationRepository.saveAll(notifications);
     }
 }
