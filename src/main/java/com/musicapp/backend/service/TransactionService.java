@@ -8,6 +8,7 @@ import com.musicapp.backend.entity.Transaction;
 import com.musicapp.backend.entity.User;
 import com.musicapp.backend.exception.BadRequestException; // <<< THÊM IMPORT
 import com.musicapp.backend.exception.ResourceNotFoundException;
+import com.musicapp.backend.exception.UnauthorizedException;
 import com.musicapp.backend.mapper.TransactionMapper;
 import com.musicapp.backend.repository.TransactionRepository;
 import com.musicapp.backend.repository.UserRepository;
@@ -78,6 +79,33 @@ public class TransactionService {
      */
     @Transactional
     public void processMomoIpn(Map<String, Object> payload) {
+        String secretKey = "at67qH6mk8w5Y1nAyMoYKMWACiEi2bsa"; // Lấy từ application.properties
+        String momoSignature = (String) payload.get("signature");
+
+        // Sắp xếp các key theo alphabet để tạo chuỗi raw
+        String rawSignature = "accessKey=" + payload.get("accessKey") +
+                "&amount=" + payload.get("amount") +
+                "&extraData=" + payload.get("extraData") +
+                "&message=" + payload.get("message") +
+                "&orderId=" + payload.get("orderId") +
+                "&orderInfo=" + payload.get("orderInfo") +
+                "&orderType=" + payload.get("orderType") +
+                "&partnerCode=" + payload.get("partnerCode") +
+                "&payType=" + payload.get("payType") +
+                "&requestId=" + payload.get("requestId") +
+                "&responseTime=" + payload.get("responseTime") +
+                "&resultCode=" + payload.get("resultCode") +
+                "&transId=" + payload.get("transId");
+
+        try {
+            String calculatedSignature = moMoService.generateHmacSHA256(rawSignature, secretKey);
+            if (!calculatedSignature.equals(momoSignature)) {
+                log.error("CẢNH BÁO BẢO MẬT: Chữ ký IPN của MoMo không hợp lệ! OrderId: {}", payload.get("orderId"));
+                throw new UnauthorizedException("Chữ ký không hợp lệ.");
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Lỗi khi xác thực chữ ký IPN của MoMo.", e);
+        }
         // TODO: XÁC THỰC CHỮ KÝ TỪ MOMO ĐỂ ĐẢM BẢO AN TOÀN
         String orderId = (String) payload.get("orderId");
         int resultCode = ((Number) payload.get("resultCode")).intValue();
