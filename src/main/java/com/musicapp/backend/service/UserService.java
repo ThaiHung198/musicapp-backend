@@ -19,7 +19,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
-
+import org.springframework.web.multipart.MultipartFile;
 import com.musicapp.backend.dto.creator.CreatorViewDto;
 import com.musicapp.backend.entity.Song;
 import com.musicapp.backend.entity.Role;
@@ -46,6 +46,8 @@ public class UserService {
     private final SongRepository songRepository;
     private final PlaylistRepository playlistRepository;
     private final SongMapper songMapper;
+    private final FileStorageService fileStorageService;
+
 
     @Transactional(readOnly = true)
     public UserProfileDto getCurrentUserProfile(User currentUser) {
@@ -152,7 +154,22 @@ public class UserService {
     }
 
     @Transactional
-    public UserProfileDto updateCurrentUserProfile(User currentUser, UpdateProfileRequest request) {
+    public UserProfileDto updateCurrentUserProfile(User currentUser, UpdateProfileRequest request, MultipartFile avatarFile) {
+        // 1. Xử lý upload và cập nhật avatar
+        if (avatarFile != null && !avatarFile.isEmpty()) {
+            // Tùy chọn: Xóa file avatar cũ nếu có
+            if (StringUtils.hasText(currentUser.getAvatarPath())) {
+                // Giả sử FileStorageService có phương thức delete
+                // fileStorageService.deleteFile(currentUser.getAvatarPath());
+            }
+
+            // Lưu file mới và lấy tên file đã được tạo (ví dụ: UUID.jpg)
+            // "images" là thư mục con trong `uploads` để lưu ảnh
+            String fileName = fileStorageService.storeFile(avatarFile, "images");
+            currentUser.setAvatarPath(fileName);
+        }
+
+        // 2. Cập nhật các thông tin khác (logic này bạn đã có)
         currentUser.setDisplayName(request.getDisplayName());
 
         if (StringUtils.hasText(request.getPhoneNumber())) {
@@ -176,6 +193,7 @@ public class UserService {
         currentUser.setDateOfBirth(request.getDateOfBirth());
         currentUser.setUpdatedAt(LocalDateTime.now());
 
+        // 3. Lưu lại vào database
         User updatedUser = userRepository.save(currentUser);
         return userMapper.toUserProfileDto(updatedUser);
     }
