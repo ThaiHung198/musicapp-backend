@@ -1,5 +1,7 @@
+// File: src/main/java/com/musicapp/backend/dto/user/UserProfileDto.java
 package com.musicapp.backend.dto.user;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -13,6 +15,7 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class UserProfileDto {
     private Long id;
     private String displayName;
@@ -24,4 +27,6 @@ public class UserProfileDto {
     private String provider;
     private LocalDateTime createdAt;
     private List<String> roles;
+    private String subscriptionStatus;
+    private LocalDate subscriptionEndDate;
 }
