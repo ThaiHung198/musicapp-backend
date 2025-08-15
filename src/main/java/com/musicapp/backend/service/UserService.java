@@ -155,16 +155,13 @@ public class UserService {
 
     @Transactional
     public UserProfileDto updateCurrentUserProfile(User currentUser, UpdateProfileRequest request, MultipartFile avatarFile) {
-        // 1. Xử lý upload và cập nhật avatar
-        if (avatarFile != null && !avatarFile.isEmpty()) {
-            // Tùy chọn: Xóa file avatar cũ nếu có
-            if (StringUtils.hasText(currentUser.getAvatarPath())) {
-                // Giả sử FileStorageService có phương thức delete
-                // fileStorageService.deleteFile(currentUser.getAvatarPath());
-            }
-
-            // Lưu file mới và lấy tên file đã được tạo (ví dụ: UUID.jpg)
-            // "images" là thư mục con trong `uploads` để lưu ảnh
+        // 1. Xử lý xóa avatar
+        if (request.isRemoveAvatar()) {
+            // (Tùy chọn) Xóa file vật lý nếu cần
+            // fileStorageService.deleteFile(currentUser.getAvatarPath());
+            currentUser.setAvatarPath(null);
+        }
+        else if (avatarFile != null && !avatarFile.isEmpty()) {
             String fileName = fileStorageService.storeFile(avatarFile, "images");
             currentUser.setAvatarPath(fileName);
         }
