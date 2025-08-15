@@ -27,6 +27,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.musicapp.backend.dto.singer.AdminUpdateSingerRequest;
 import org.springframework.util.StringUtils;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -143,6 +144,8 @@ public class SingerService {
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy ca sĩ với ID: " + id));
 
         List<Song> songs = songRepository.findBySingersIdAndStatus(id, Song.SongStatus.APPROVED);
+        songs.sort(Comparator.comparing(Song::getCreatedAt).reversed());
+
         List<SongDto> songDtos = songs.stream()
                 .map(song -> songMapper.toDto(song, null))
                 .collect(Collectors.toList());

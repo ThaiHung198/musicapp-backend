@@ -20,12 +20,6 @@ public class TransactionDto {
     private String transactionCode;
     private String status;
     private LocalDateTime createdAt;
-
-    // User info
-    private Long userId;
-    private String userName;
-
-    // Related entity info
-    private Long subscriptionId;
-    private LocalDateTime subscriptionEndDate;
+    private LocalDateTime premiumStartDate;
+    private LocalDateTime premiumEndDate;
 }

@@ -7,9 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
-
 import org.hibernate.annotations.CreationTimestamp;
-
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -47,8 +45,8 @@ public class Transaction {
     @Column(length = 20)
     private TransactionStatus status;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "subscription_id", nullable = true)
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "subscription_id")
     private UserSubscription subscription;
 
     @CreationTimestamp

@@ -158,8 +158,6 @@ public class UserService {
     public UserProfileDto updateCurrentUserProfile(User currentUser, UpdateProfileRequest request, MultipartFile avatarFile) {
         // 1. Xử lý xóa avatar
         if (request.isRemoveAvatar()) {
-            // (Tùy chọn) Xóa file vật lý nếu cần
-            // fileStorageService.deleteFile(currentUser.getAvatarPath());
             currentUser.setAvatarPath(null);
         }
         else if (avatarFile != null && !avatarFile.isEmpty()) {
