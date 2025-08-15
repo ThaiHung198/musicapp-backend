@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.data.domain.PageRequest;
 
 import java.util.HashSet;
 import java.util.List;
@@ -299,5 +300,13 @@ public class PlaylistService {
         if (playlist.getVisibility() == PlaylistVisibility.PUBLIC) {
             playlistRepository.incrementListenCount(playlistId);
         }
+    }
+
+    public List<PlaylistDto> getTopListenedPlaylists(int limit, User currentUser) {
+        Pageable pageable = PageRequest.of(0, limit);
+        List<Playlist> playlists = playlistRepository.findTopListenedPublicPlaylists(pageable);
+        return playlists.stream()
+                .map(p -> playlistMapper.toDto(p, currentUser))
+                .collect(Collectors.toList());
     }
 }

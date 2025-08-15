@@ -120,4 +120,14 @@ public class PlaylistController {
         playlistService.incrementListenCount(id);
         return ResponseEntity.ok(BaseResponse.success("Playlist listen count incremented.", null));
     }
+
+    // Lấy dữ liệu playlist được nghe nhiều nhất
+    @GetMapping("/top-listened")
+    @PreAuthorize("permitAll()")
+    public ResponseEntity<BaseResponse<List<PlaylistDto>>> getTopListenedPlaylists(
+            @RequestParam(defaultValue = "8") int limit,
+            @AuthenticationPrincipal User currentUser) {
+        List<PlaylistDto> playlists = playlistService.getTopListenedPlaylists(limit, currentUser);
+        return ResponseEntity.ok(BaseResponse.success(playlists));
+    }
 }
