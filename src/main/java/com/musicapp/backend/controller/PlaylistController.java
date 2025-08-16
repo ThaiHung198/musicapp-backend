@@ -1,3 +1,4 @@
+// File: src/main/java/com/musicapp/backend/controller/PlaylistController.java
 package com.musicapp.backend.controller;
 import com.musicapp.backend.dto.BaseResponse;
 import com.musicapp.backend.dto.playlist.*;
@@ -15,6 +16,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1/playlists")
 @RequiredArgsConstructor
@@ -33,7 +35,7 @@ public class PlaylistController {
     }
 
     @GetMapping("/my-playlists")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAnyRole('USER', 'CREATOR', 'ADMIN')") // Giữ lại fix từ lần trước
     public ResponseEntity<BaseResponse<List<PlaylistDto>>> getMyPlaylists(@AuthenticationPrincipal User currentUser) {
         List<PlaylistDto> playlists = playlistService.getMyPlaylists(currentUser);
         return ResponseEntity.ok(BaseResponse.success(playlists));

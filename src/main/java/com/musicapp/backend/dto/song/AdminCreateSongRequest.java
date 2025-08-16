@@ -1,7 +1,9 @@
+// File: src/main/java/com/musicapp/backend/dto/song/AdminCreateSongRequest.java
 package com.musicapp.backend.dto.song;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
 import lombok.Data;
 import java.util.List;
 
@@ -13,10 +15,23 @@ public class AdminCreateSongRequest {
 
     private String description;
 
-    @NotEmpty(message = "At least one singer is required")
     private List<Long> singerIds;
+
+    @Valid
+    private List<NewSingerInfo> newSingers;
 
     private List<Long> tagIds;
 
     private boolean isPremium = false;
+
+    @Data
+    public static class NewSingerInfo {
+        @NotBlank(message = "New singer name is required")
+        private String name;
+
+        @Email(message = "Invalid email format for new singer")
+        private String email;
+
+        private String avatarFileName;
+    }
 }

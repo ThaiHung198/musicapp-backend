@@ -67,33 +67,33 @@ public class PlaylistService {
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy playlist với ID: " + playlistId));
 
         PlaylistVisibility visibility = playlist.getVisibility();
+        boolean isOwner = currentUser != null && playlist.getCreator() != null && playlist.getCreator().getId().equals(currentUser.getId());
+        boolean isAdmin = currentUser != null && currentUser.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
 
-        if (visibility == PlaylistVisibility.PRIVATE) {
-            if (currentUser == null) {
-                throw new UnauthorizedException("Bạn phải đăng nhập để xem playlist này.");
-            }
-            boolean isOwner = playlist.getCreator() != null &&
-                    playlist.getCreator().getId().equals(currentUser.getId());
-            if (!isOwner) {
-                throw new UnauthorizedException("Bạn không có quyền xem playlist này.");
-            }
-        }
-        else if (visibility == PlaylistVisibility.HIDDEN) {
-            if (currentUser == null) {
-                throw new UnauthorizedException("Bạn phải đăng nhập để xem playlist này.");
-            }
-
-            boolean isOwner = playlist.getCreator() != null &&
-                    playlist.getCreator().getId().equals(currentUser.getId());
-            boolean isAdmin = currentUser.getAuthorities().stream()
-                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-
-            if (!isOwner && !isAdmin) {
-                throw new UnauthorizedException("Bạn không có quyền xem playlist này.");
-            }
+        if (visibility == PlaylistVisibility.PRIVATE && !isOwner) {
+            throw new UnauthorizedException("Bạn không có quyền xem playlist này.");
         }
 
-        return playlistMapper.toDetailDto(playlist, currentUser);
+        if (visibility == PlaylistVisibility.HIDDEN && !isOwner && !isAdmin) {
+            throw new UnauthorizedException("Bạn không có quyền xem playlist này.");
+        }
+
+        // START-FIX: Chuyển toàn bộ logic kiểm tra quyền vào Service
+        User playlistCreator = playlist.getCreator();
+        boolean playlistWasCreatedByCreator = playlistCreator != null && playlistCreator.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_CREATOR"));
+
+        boolean canDelete = isOwner || (isAdmin && playlistWasCreatedByCreator);
+        boolean canToggle = (isOwner && playlist.getVisibility() != Playlist.PlaylistVisibility.PRIVATE) ||
+                (isAdmin && playlistWasCreatedByCreator);
+
+        PlaylistDetailDto dto = playlistMapper.toDetailDto(playlist, currentUser);
+        dto.setCanEdit(isOwner);
+        dto.setCanDelete(canDelete);
+        dto.setCanToggleVisibility(canToggle);
+
+        return dto;
+        // END-FIX
     }
 
 
@@ -151,7 +151,8 @@ public class PlaylistService {
             playlist.setSongs(newSongs);
         }
         Playlist updatedPlaylist = playlistRepository.save(playlist);
-        return playlistMapper.toDetailDto(updatedPlaylist, currentUser);
+        // Sau khi cập nhật, gọi lại getPlaylistById để tính toán lại quyền
+        return getPlaylistById(updatedPlaylist.getId(), currentUser);
     }
 
     @Transactional
@@ -231,9 +232,7 @@ public class PlaylistService {
             return processedSongs;
         }
 
-        // --- BẮT ĐẦU SỬA ĐỔI ---
         List<Song> foundSongs = songRepository.findByIdInWithCreator(songIds);
-        // --- KẾT THÚC SỬA ĐỔI ---
 
         if (foundSongs.size() != songIds.size()) {
             throw new ResourceNotFoundException("Một hoặc nhiều bài hát không tồn tại.");
@@ -297,7 +296,7 @@ public class PlaylistService {
         Playlist playlist = playlistRepository.findById(playlistId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy playlist với ID: " + playlistId));
 
-        if (playlist.getVisibility() == PlaylistVisibility.PUBLIC) {
+        if (playlist.getVisibility() == Playlist.PlaylistVisibility.PUBLIC) {
             playlistRepository.incrementListenCount(playlistId);
         }
     }

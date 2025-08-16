@@ -1,9 +1,7 @@
+// File: src/main/java/com/musicapp/backend/service/SingerService.java
 package com.musicapp.backend.service;
 
-import com.musicapp.backend.dto.singer.AdminCreateSingerRequest;
-import com.musicapp.backend.dto.singer.CreateSingerRequest;
-import com.musicapp.backend.dto.singer.SingerDetailDto;
-import com.musicapp.backend.dto.singer.SingerDto;
+import com.musicapp.backend.dto.singer.*;
 import com.musicapp.backend.dto.song.SongDto;
 import com.musicapp.backend.entity.Singer;
 import com.musicapp.backend.entity.Singer.SingerStatus;
@@ -23,17 +21,14 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-
-import com.musicapp.backend.dto.singer.AdminUpdateSingerRequest;
 import org.springframework.util.StringUtils;
 
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 public class SingerService {
 
     private final SingerRepository singerRepository;
@@ -43,6 +38,7 @@ public class SingerService {
     private final SongRepository songRepository;
     private final SongMapper songMapper;
 
+    @Transactional(readOnly = true)
     public Page<SingerDto> getAllSingersForAdmin(String keyword, Pageable pageable, Singer.SingerStatus status) {
         if (keyword != null && !keyword.trim().isEmpty()) {
             return singerRepository.searchAllWithSongCountForAdmin(keyword.trim(), pageable, status);
@@ -73,6 +69,43 @@ public class SingerService {
         Singer savedSinger = singerRepository.save(singer);
         return singerMapper.toDto(savedSinger);
     }
+
+    // START-CHANGE: Thêm phương thức mới để tạo nhiều ca sĩ
+    @Transactional
+    public List<SingerDto> createMultipleSingersByAdmin(AdminCreateMultipleSingersRequest request, List<MultipartFile> avatarFiles, User admin) {
+        List<Singer> newSingers = new ArrayList<>();
+        Map<String, MultipartFile> fileMap = (avatarFiles != null)
+                ? avatarFiles.stream().collect(Collectors.toMap(MultipartFile::getOriginalFilename, Function.identity()))
+                : Collections.emptyMap();
+
+        for (AdminCreateMultipleSingersRequest.SingerInfo singerInfo : request.getSingers()) {
+            if (singerRepository.existsByEmail(singerInfo.getEmail())) {
+                throw new ResourceAlreadyExistsException("Singer already exists with email: " + singerInfo.getEmail());
+            }
+
+            String avatarPath = null;
+            // Dùng clientId để map với tên file gốc
+            MultipartFile avatarFile = fileMap.get(singerInfo.getClientId());
+            if (avatarFile != null && !avatarFile.isEmpty()) {
+                avatarPath = fileStorageService.storeFile(avatarFile, "images/singers");
+            }
+
+            Singer singer = Singer.builder()
+                    .name(singerInfo.getName())
+                    .email(singerInfo.getEmail())
+                    .avatarPath(avatarPath)
+                    .creator(admin)
+                    .status(Singer.SingerStatus.APPROVED)
+                    .build();
+            newSingers.add(singer);
+        }
+
+        List<Singer> savedSingers = singerRepository.saveAll(newSingers);
+        return savedSingers.stream()
+                .map(singerMapper::toDto)
+                .collect(Collectors.toList());
+    }
+    // END-CHANGE
 
     @Transactional
     public SingerDto updateSingerByAdmin(Long id, AdminUpdateSingerRequest request, MultipartFile avatarFile) {
@@ -124,21 +157,35 @@ public class SingerService {
         singerRepository.delete(singer);
     }
 
-    public List<SingerDto> getSelectableSingersForCreator(User creator) {
-        return singerRepository.findByCreatorIdAndStatusOrderByNameAsc(creator.getId(), SingerStatus.APPROVED)
-                .stream()
+    private boolean hasAdminRole(User user) {
+        return user.getAuthorities().stream()
+                .anyMatch(grantedAuthority -> grantedAuthority.getAuthority().equals("ROLE_ADMIN"));
+    }
+
+    @Transactional(readOnly = true)
+    public List<SingerDto> getSelectableSingersForCreator(User user) {
+        List<Singer> singers;
+        if (hasAdminRole(user)) {
+            singers = singerRepository.findByStatusOrderByNameAsc(SingerStatus.APPROVED);
+        } else {
+            singers = singerRepository.findByCreatorIdAndStatusOrderByNameAsc(user.getId(), SingerStatus.APPROVED);
+        }
+        return singers.stream()
                 .map(singerMapper::toDtoWithoutSongCount)
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public Page<SingerDto> getAllSingers(Pageable pageable) {
         return singerRepository.findAllWithSongCount(pageable);
     }
 
+    @Transactional(readOnly = true)
     public Page<SingerDto> searchSingers(String keyword, Pageable pageable) {
         return singerRepository.searchAllWithSongCount(keyword, pageable);
     }
 
+    @Transactional(readOnly = true)
     public SingerDetailDto getSingerDetailById(Long id) {
         Singer singer = singerRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy ca sĩ với ID: " + id));
@@ -153,6 +200,7 @@ public class SingerService {
         return singerMapper.toDetailDto(singer, songDtos);
     }
 
+    @Transactional(readOnly = true)
     public List<SingerDto> getAllSingersAsList() {
         return singerRepository.findAllOrderByNameAsc(Pageable.unpaged())
                 .getContent()

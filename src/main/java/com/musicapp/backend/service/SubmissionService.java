@@ -19,10 +19,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -46,10 +48,9 @@ public class SubmissionService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
 
         String audioFilePath = fileStorageService.storeFile(audioFile, "audio");
-        String thumbnailFilePath = null;
-        if (thumbnailFile != null && !thumbnailFile.isEmpty()) {
-            thumbnailFilePath = fileStorageService.storeFile(thumbnailFile, "images/songs");
-        }
+        String thumbnailFilePath = (thumbnailFile != null && !thumbnailFile.isEmpty())
+                ? fileStorageService.storeFile(thumbnailFile, "images/songs")
+                : null;
 
         if (CollectionUtils.isEmpty(request.getExistingSingerIds()) && CollectionUtils.isEmpty(request.getNewSingers())) {
             throw new BadRequestException("At least one existing or new singer is required.");
@@ -66,6 +67,7 @@ public class SubmissionService {
                 .build();
 
         Set<Singer> allSingersForSubmission = processSingers(request, newSingerAvatars, creator);
+
         Set<Tag> tags = new HashSet<>();
         if (request.getTagIds() != null) {
             tags.addAll(tagRepository.findAllById(request.getTagIds()));
@@ -88,19 +90,19 @@ public class SubmissionService {
     private Set<Singer> processSingers(CreateSubmissionRequest request, List<MultipartFile> newSingerAvatars, User creator) {
         Set<Singer> allSingers = new HashSet<>();
         if (!CollectionUtils.isEmpty(request.getNewSingers())) {
-            int avatarIndex = 0;
+            Map<String, MultipartFile> avatarFilesMap = (newSingerAvatars != null)
+                    ? newSingerAvatars.stream().collect(Collectors.toMap(MultipartFile::getOriginalFilename, Function.identity(), (first, second) -> first))
+                    : Collections.emptyMap();
+
             for (NewSingerInfo newSingerInfo : request.getNewSingers()) {
                 if (singerRepository.existsByEmail(newSingerInfo.getEmail())) {
                     throw new ResourceAlreadyExistsException("A singer with email '" + newSingerInfo.getEmail() + "' already exists.");
                 }
 
                 String avatarPath = null;
-                if (newSingerAvatars != null && avatarIndex < newSingerAvatars.size()) {
-                    MultipartFile avatarFile = newSingerAvatars.get(avatarIndex);
-                    if (avatarFile != null && !avatarFile.isEmpty()) {
-                        avatarPath = fileStorageService.storeFile(avatarFile, "images/singers");
-                    }
-                    avatarIndex++;
+                if (StringUtils.hasText(newSingerInfo.getAvatarFileName()) && avatarFilesMap.containsKey(newSingerInfo.getAvatarFileName())) {
+                    MultipartFile avatarFile = avatarFilesMap.get(newSingerInfo.getAvatarFileName());
+                    avatarPath = fileStorageService.storeFile(avatarFile, "images/singers");
                 }
 
                 Singer newSinger = Singer.builder()
@@ -140,6 +142,7 @@ public class SubmissionService {
         return allSingers;
     }
 
+    @Transactional(readOnly = true)
     public PagedResponse<SubmissionDto> getSubmissionsByUser(String username, SongSubmission.SubmissionStatus status, Pageable pageable) {
         User user = userRepository.findByEmail(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
@@ -158,6 +161,7 @@ public class SubmissionService {
         return PagedResponse.of(submissionDtos, submissionsPage);
     }
 
+    @Transactional(readOnly = true)
     public SubmissionDto getSubmissionById(Long id, String username) {
         User user = userRepository.findByEmail(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
@@ -187,7 +191,6 @@ public class SubmissionService {
             throw new BadRequestException("Can only update submissions that are in PENDING status.");
         }
 
-        // Handle file updates
         if (audioFile != null && !audioFile.isEmpty()) {
             fileStorageService.deleteFile(submission.getFilePath());
             String newAudioPath = fileStorageService.storeFile(audioFile, "audio");
@@ -195,7 +198,7 @@ public class SubmissionService {
         }
         if (thumbnailFile != null && !thumbnailFile.isEmpty()) {
             if (submission.getThumbnailPath() != null) {
-                fileStorageService.deleteFile(submission.getThumbnailPath()); // Delete old thumbnail if exists
+                fileStorageService.deleteFile(submission.getThumbnailPath());
             }
             String newThumbnailPath = fileStorageService.storeFile(thumbnailFile, "images/songs");
             submission.setThumbnailPath(newThumbnailPath);
@@ -312,12 +315,16 @@ public class SubmissionService {
             if (singer.getStatus() == Singer.SingerStatus.PENDING) {
                 long submissionCount = submissionSingersRepository.countBySingerId(singer.getId());
                 if (submissionCount == 0) {
+                    if (singer.getAvatarPath() != null) {
+                        fileStorageService.deleteFile(singer.getAvatarPath());
+                    }
                     singerRepository.delete(singer);
                 }
             }
         }
     }
 
+    @Transactional(readOnly = true)
     public PagedResponse<SubmissionDto> getSubmissionsByStatus(SongSubmission.SubmissionStatus status, Pageable pageable) {
         Page<SongSubmission> page = submissionRepository.findByStatusOrderBySubmissionDateDesc(status, pageable);
         List<SubmissionDto> dtos = page.getContent().stream()
@@ -326,6 +333,7 @@ public class SubmissionService {
         return PagedResponse.of(dtos, page);
     }
 
+    @Transactional(readOnly = true)
     public PagedResponse<SubmissionDto> searchSubmissions(String search, SongSubmission.SubmissionStatus status, Pageable pageable) {
         Page<SongSubmission> submissionsPage;
         if (search != null && !search.trim().isEmpty()) {
@@ -356,12 +364,12 @@ public class SubmissionService {
 
         User creator = submission.getCreator();
 
+        Set<Singer> associatedSingers = submission.getSubmissionSingers().stream()
+                .map(SubmissionSingers::getSinger)
+                .collect(Collectors.toSet());
+
         if ("APPROVE".equalsIgnoreCase(request.getAction())) {
             submission.setStatus(SongSubmission.SubmissionStatus.APPROVED);
-
-            Set<Singer> singers = submission.getSubmissionSingers().stream()
-                    .map(SubmissionSingers::getSinger)
-                    .collect(Collectors.toSet());
 
             Set<Tag> tags = submission.getSubmissionTags().stream()
                     .map(SubmissionTags::getTag)
@@ -376,15 +384,14 @@ public class SubmissionService {
                     .status(Song.SongStatus.APPROVED)
                     .creator(submission.getCreator())
                     .submission(submission)
-                    .singers(singers)
+                    .singers(associatedSingers)
                     .tags(tags)
                     .build();
 
             Song savedSong = songRepository.save(approvedSong);
             submission.setApprovedSong(savedSong);
 
-            submission.getSubmissionSingers().stream()
-                    .map(SubmissionSingers::getSinger)
+            associatedSingers.stream()
                     .filter(singer -> singer.getStatus() == Singer.SingerStatus.PENDING)
                     .forEach(singer -> {
                         singer.setStatus(Singer.SingerStatus.APPROVED);
@@ -392,11 +399,11 @@ public class SubmissionService {
                     });
 
             Notification notification = Notification.builder()
-                    .recipient(creator) // Người nhận là creator
-                    .actor(reviewer)    // Người thực hiện là admin/reviewer
+                    .recipient(creator)
+                    .actor(reviewer)
                     .type(Notification.NotificationType.SUBMISSION_APPROVED)
                     .message("Yêu cầu của bạn cho bài hát '" + submission.getTitle() + "' đã được duyệt.")
-                    .link("/song/" + savedSong.getId()) // Link đến bài hát vừa được tạo
+                    .link("/song/" + savedSong.getId())
                     .build();
             notificationRepository.save(notification);
 
@@ -404,22 +411,24 @@ public class SubmissionService {
             submission.setStatus(SongSubmission.SubmissionStatus.REJECTED);
             submission.setRejectionReason(request.getRejectionReason());
 
-            submission.getSubmissionSingers().stream()
-                    .map(SubmissionSingers::getSinger)
+            Set<Singer> pendingSingersToCleanup = associatedSingers.stream()
                     .filter(singer -> singer.getStatus() == Singer.SingerStatus.PENDING)
-                    .forEach(singer -> {
-                        singer.setStatus(Singer.SingerStatus.REJECTED);
-                        singerRepository.save(singer);
-                    });
+                    .collect(Collectors.toSet());
 
             Notification notification = Notification.builder()
                     .recipient(creator)
                     .actor(reviewer)
                     .type(Notification.NotificationType.SUBMISSION_REJECTED)
                     .message("Yêu cầu của bạn cho bài hát '" + submission.getTitle() + "' đã bị từ chối. Lý do: " + request.getRejectionReason())
-                    .link("/creator/my-library?tab=submissions") // Link đến trang quản lý submission của creator
+                    .link("/creator/my-submissions")
                     .build();
             notificationRepository.save(notification);
+
+            SongSubmission updatedSubmission = submissionRepository.save(submission);
+
+            cleanupOrphanedPendingSingers(pendingSingersToCleanup);
+
+            return submissionMapper.toDto(updatedSubmission, reviewer);
 
         } else {
             throw new BadRequestException("Invalid review action. Must be APPROVE or REJECT");
@@ -446,6 +455,7 @@ public class SubmissionService {
         return reviewSubmission(id, request, reviewerUsername);
     }
 
+    @Transactional(readOnly = true)
     public Object getUserSubmissionStats(String username) {
         User user = userRepository.findByEmail(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
@@ -458,6 +468,7 @@ public class SubmissionService {
         );
     }
 
+    @Transactional(readOnly = true)
     public Object getAdminSubmissionStats() {
         return Map.of(
                 "totalSubmissions", submissionRepository.count(),
@@ -469,24 +480,21 @@ public class SubmissionService {
     }
 
     private void notifyAdminsOfNewSubmission(SongSubmission submission, User creator) {
-        // 1. Tìm tất cả người dùng có vai trò là ADMIN
         List<User> admins = userRepository.findByRoleNameAndKeyword("ROLE_ADMIN", "", Pageable.unpaged()).getContent();
 
         if (admins.isEmpty()) {
-            // Có thể log ra một cảnh báo nếu không tìm thấy admin nào
             System.out.println("Warning: No admins found to notify for new submission ID: " + submission.getId());
             return;
         }
 
-        // 2. Tạo một danh sách các đối tượng Notification
         List<Notification> notifications = new ArrayList<>();
         String message = creator.getDisplayName() + " vừa gửi một bài hát mới để duyệt: " + submission.getTitle();
-        String link = "/admin/submissions/" + submission.getId(); // Link đến trang chi tiết submission cho admin
+        String link = "/admin/submissions/" + submission.getId();
 
         for (User admin : admins) {
             Notification notification = Notification.builder()
-                    .recipient(admin) // Người nhận là admin
-                    .actor(creator)   // Người thực hiện hành động là creator
+                    .recipient(admin)
+                    .actor(creator)
                     .type(Notification.NotificationType.NEW_SUBMISSION_PENDING)
                     .message(message)
                     .link(link)
@@ -494,7 +502,6 @@ public class SubmissionService {
             notifications.add(notification);
         }
 
-        // 3. Lưu tất cả thông báo vào CSDL trong một lần
         notificationRepository.saveAll(notifications);
     }
 }

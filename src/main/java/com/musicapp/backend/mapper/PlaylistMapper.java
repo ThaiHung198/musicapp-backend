@@ -28,7 +28,7 @@ public class PlaylistMapper {
                 .thumbnailPath(playlist.getThumbnailPath())
                 .visibility(playlist.getVisibility().name())
                 .createdAt(playlist.getCreatedAt())
-                .listenCount(playlist.getListenCount()) // Thêm listenCount
+                .listenCount(playlist.getListenCount())
                 .creatorId(playlist.getCreator() != null ? playlist.getCreator().getId() : null)
                 .creatorName(playlist.getCreator() != null ? playlist.getCreator().getDisplayName() : "Hệ thống")
                 .songCount(playlist.getSongs() != null ? playlist.getSongs().size() : 0)
@@ -43,26 +43,13 @@ public class PlaylistMapper {
             return null;
         }
 
-        boolean isOwner = currentUser != null && playlist.getCreator() != null &&
-                playlist.getCreator().getId().equals(currentUser.getId());
-        boolean isAdmin = currentUser != null && currentUser.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-
-        User playlistCreator = playlist.getCreator();
-        boolean playlistWasCreatedByCreator = playlistCreator != null && playlistCreator.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_CREATOR"));
-
-        boolean canDelete = isOwner || (isAdmin && playlistWasCreatedByCreator);
-        boolean canToggle = (isOwner && playlist.getVisibility() != Playlist.PlaylistVisibility.PRIVATE) ||
-                (isAdmin && playlistWasCreatedByCreator);
-
         return PlaylistDetailDto.builder()
                 .id(playlist.getId())
                 .name(playlist.getName())
                 .thumbnailPath(playlist.getThumbnailPath())
                 .visibility(playlist.getVisibility().name())
                 .createdAt(playlist.getCreatedAt())
-                .listenCount(playlist.getListenCount()) // Thêm listenCount
+                .listenCount(playlist.getListenCount())
                 .creatorId(playlist.getCreator() != null ? playlist.getCreator().getId() : null)
                 .creatorName(playlist.getCreator() != null ? playlist.getCreator().getDisplayName() : "Hệ thống")
                 .songCount(playlist.getSongs() != null ? playlist.getSongs().size() : 0)
@@ -72,9 +59,6 @@ public class PlaylistMapper {
                 .likeCount(likeRepository.countByLikeableIdAndLikeableType(playlist.getId(), Like.LikeableType.PLAYLIST))
                 .isLikedByCurrentUser(currentUser != null && likeRepository.existsByUserIdAndLikeableIdAndLikeableType(
                         currentUser.getId(), playlist.getId(), Like.LikeableType.PLAYLIST))
-                .canEdit(isOwner)
-                .canDelete(canDelete)
-                .canToggleVisibility(canToggle)
                 .build();
     }
 }

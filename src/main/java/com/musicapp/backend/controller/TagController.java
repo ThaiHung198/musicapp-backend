@@ -1,7 +1,9 @@
+// File: src/main/java/com/musicapp/backend/controller/TagController.java
 package com.musicapp.backend.controller;
 
 import com.musicapp.backend.dto.BaseResponse;
 import com.musicapp.backend.dto.PagedResponse;
+import com.musicapp.backend.dto.tag.AdminCreateMultipleTagsRequest;
 import com.musicapp.backend.dto.tag.CreateTagRequest;
 import com.musicapp.backend.dto.tag.TagAdminViewDto;
 import com.musicapp.backend.dto.tag.TagDto;
@@ -46,6 +48,15 @@ public class TagController {
         TagDto tag = tagService.createTag(request);
         return ResponseEntity.ok(BaseResponse.success("Tạo tag mới thành công.", tag));
     }
+
+    // START-CHANGE: Thêm endpoint mới để tạo nhiều tags
+    @PostMapping("/admin/batch")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BaseResponse<List<TagDto>>> createMultipleTags(@Valid @RequestBody AdminCreateMultipleTagsRequest request) {
+        List<TagDto> tags = tagService.createMultipleTags(request);
+        return ResponseEntity.ok(BaseResponse.success("Tạo " + tags.size() + " tags mới thành công.", tags));
+    }
+    // END-CHANGE
 
     @PutMapping("/admin/{id}")
     @PreAuthorize("hasRole('ADMIN')")
