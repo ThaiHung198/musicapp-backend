@@ -1,4 +1,3 @@
-// File: src/main/java/com/musicapp/backend/mapper/UserMapper.java
 package com.musicapp.backend.mapper;
 
 import com.musicapp.backend.dto.creator.CreatorDetailDto;
@@ -9,6 +8,7 @@ import com.musicapp.backend.entity.Role;
 import com.musicapp.backend.entity.Song;
 import com.musicapp.backend.entity.User;
 import com.musicapp.backend.entity.UserSubscription;
+import com.musicapp.backend.service.SubscriptionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -21,6 +21,7 @@ import java.util.stream.Collectors;
 public class UserMapper {
 
     private final SongMapper songMapper;
+    private final SubscriptionService subscriptionService;
 
     public UserProfileDto toUserProfileDto(User user) {
         if (user == null) {
@@ -30,6 +31,8 @@ public class UserMapper {
         Optional<UserSubscription> activeSubscriptionOpt = user.getSubscriptions().stream()
                 .filter(sub -> sub.getStatus() == UserSubscription.SubscriptionStatus.ACTIVE)
                 .findFirst();
+
+        boolean hasActiveSub = subscriptionService.hasActivePremiumSubscription(user.getId());
 
         UserProfileDto.UserProfileDtoBuilder builder = UserProfileDto.builder()
                 .id(user.getId())
@@ -43,13 +46,12 @@ public class UserMapper {
                 .createdAt(user.getCreatedAt())
                 .roles(user.getRoles().stream()
                         .map(Role::getName)
-                        .collect(Collectors.toList()));
+                        .collect(Collectors.toList()))
+                .hasActiveSubscription(hasActiveSub);
 
         activeSubscriptionOpt.ifPresent(sub -> {
             builder.subscriptionStatus(sub.getStatus().name());
-            // START-FIX: Chuyển đổi từ LocalDateTime sang LocalDate
             builder.subscriptionEndDate(sub.getEndDate().toLocalDate());
-            // END-FIX
         });
 
         return builder.build();

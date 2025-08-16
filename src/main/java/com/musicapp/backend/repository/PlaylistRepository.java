@@ -1,3 +1,5 @@
+// backend/src/main/java/com/musicapp/backend/repository/PlaylistRepository.java
+
 package com.musicapp.backend.repository;
 
 import com.musicapp.backend.dto.playlist.PlaylistDto;
@@ -30,7 +32,7 @@ public interface PlaylistRepository extends JpaRepository<Playlist, Long> {
     Page<Playlist> searchPublicPlaylists(@Param("keyword") String keyword, Pageable pageable);
 
     @Query("SELECT p FROM Playlist p WHERE p.visibility = 'PUBLIC' ORDER BY p.createdAt DESC")
-    List<Playlist> findRecentlyCreatedPublicPlaylists(Pageable pageable);
+    Page<Playlist> findRecentlyCreatedPublicPlaylists(Pageable pageable);
 
     long countByCreatorId(Long creatorId);
 

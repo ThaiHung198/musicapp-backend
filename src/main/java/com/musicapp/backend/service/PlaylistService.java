@@ -1,25 +1,31 @@
+// backend/src/main/java/com/musicapp/backend/service/PlaylistService.java
+
 package com.musicapp.backend.service;
 
 import com.musicapp.backend.dto.playlist.*;
 import com.musicapp.backend.entity.Playlist;
-import com.musicapp.backend.entity.Playlist.PlaylistVisibility;
 import com.musicapp.backend.entity.Song;
 import com.musicapp.backend.entity.User;
 import com.musicapp.backend.exception.BadRequestException;
 import com.musicapp.backend.exception.ResourceNotFoundException;
 import com.musicapp.backend.exception.UnauthorizedException;
 import com.musicapp.backend.mapper.PlaylistMapper;
+// --- BẮT ĐẦU CHỈNH SỬA: Import LikeRepository ---
+import com.musicapp.backend.repository.LikeRepository;
+// --- KẾT THÚC CHỈNH SỬA ---
 import com.musicapp.backend.repository.PlaylistRepository;
 import com.musicapp.backend.repository.SongRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.data.domain.PageRequest;
 
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -34,6 +40,10 @@ public class PlaylistService {
     private final FileStorageService fileStorageService;
     private final SongRepository songRepository;
     private final PlaylistMapper playlistMapper;
+    // --- BẮT ĐẦU CHỈNH SỬA: Inject LikeRepository ---
+    private final LikeRepository likeRepository;
+    // --- KẾT THÚC CHỈNH SỬA ---
+
 
     @Transactional
     public PlaylistDto createPlaylist(CreatePlaylistRequest request, MultipartFile thumbnailFile, User currentUser) {
@@ -54,7 +64,7 @@ public class PlaylistService {
                 .thumbnailPath(thumbnailPath)
                 .songs(songs)
                 .creator(currentUser)
-                .visibility((isAdmin || isCreator) ? PlaylistVisibility.PUBLIC : PlaylistVisibility.PRIVATE)
+                .visibility((isAdmin || isCreator) ? Playlist.PlaylistVisibility.PUBLIC : Playlist.PlaylistVisibility.PRIVATE)
                 .build();
 
         Playlist savedPlaylist = playlistRepository.save(playlist);
@@ -66,19 +76,18 @@ public class PlaylistService {
         Playlist playlist = playlistRepository.findById(playlistId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy playlist với ID: " + playlistId));
 
-        PlaylistVisibility visibility = playlist.getVisibility();
+        Playlist.PlaylistVisibility visibility = playlist.getVisibility();
         boolean isOwner = currentUser != null && playlist.getCreator() != null && playlist.getCreator().getId().equals(currentUser.getId());
         boolean isAdmin = currentUser != null && currentUser.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
 
-        if (visibility == PlaylistVisibility.PRIVATE && !isOwner) {
+        if (visibility == Playlist.PlaylistVisibility.PRIVATE && !isOwner) {
             throw new UnauthorizedException("Bạn không có quyền xem playlist này.");
         }
 
-        if (visibility == PlaylistVisibility.HIDDEN && !isOwner && !isAdmin) {
+        if (visibility == Playlist.PlaylistVisibility.HIDDEN && !isOwner && !isAdmin) {
             throw new UnauthorizedException("Bạn không có quyền xem playlist này.");
         }
 
-        // START-FIX: Chuyển toàn bộ logic kiểm tra quyền vào Service
         User playlistCreator = playlist.getCreator();
         boolean playlistWasCreatedByCreator = playlistCreator != null && playlistCreator.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_CREATOR"));
@@ -93,7 +102,6 @@ public class PlaylistService {
         dto.setCanToggleVisibility(canToggle);
 
         return dto;
-        // END-FIX
     }
 
 
@@ -151,7 +159,6 @@ public class PlaylistService {
             playlist.setSongs(newSongs);
         }
         Playlist updatedPlaylist = playlistRepository.save(playlist);
-        // Sau khi cập nhật, gọi lại getPlaylistById để tính toán lại quyền
         return getPlaylistById(updatedPlaylist.getId(), currentUser);
     }
 
@@ -258,7 +265,7 @@ public class PlaylistService {
         Playlist playlist = playlistRepository.findById(playlistId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy playlist với ID: " + playlistId));
 
-        if (playlist.getVisibility() == PlaylistVisibility.PRIVATE) {
+        if (playlist.getVisibility() == Playlist.PlaylistVisibility.PRIVATE) {
             throw new BadRequestException("Không thể ẩn/hiện playlist cá nhân (PRIVATE).");
         }
 
@@ -276,10 +283,10 @@ public class PlaylistService {
             throw new UnauthorizedException("Bạn không có quyền thay đổi trạng thái của playlist này.");
         }
 
-        if (playlist.getVisibility() == PlaylistVisibility.PUBLIC) {
-            playlist.setVisibility(PlaylistVisibility.HIDDEN);
-        } else if (playlist.getVisibility() == PlaylistVisibility.HIDDEN) {
-            playlist.setVisibility(PlaylistVisibility.PUBLIC);
+        if (playlist.getVisibility() == Playlist.PlaylistVisibility.PUBLIC) {
+            playlist.setVisibility(Playlist.PlaylistVisibility.HIDDEN);
+        } else if (playlist.getVisibility() == Playlist.PlaylistVisibility.HIDDEN) {
+            playlist.setVisibility(Playlist.PlaylistVisibility.PUBLIC);
         }
 
         Playlist updatedPlaylist = playlistRepository.save(playlist);
@@ -306,6 +313,31 @@ public class PlaylistService {
         List<Playlist> playlists = playlistRepository.findTopListenedPublicPlaylists(pageable);
         return playlists.stream()
                 .map(p -> playlistMapper.toDto(p, currentUser))
+                .collect(Collectors.toList());
+    }
+
+    public List<PlaylistDto> getRecentPlaylists(int limit, User currentUser) {
+        Pageable pageable = PageRequest.of(0, limit);
+        Page<Playlist> playlistPage = playlistRepository.findRecentlyCreatedPublicPlaylists(pageable);
+        return playlistPage.getContent().stream()
+                .map(p -> playlistMapper.toDto(p, currentUser))
+                .collect(Collectors.toList());
+    }
+
+    public List<PlaylistDto> getMostLikedPlaylists(int limit, User currentUser) {
+        Pageable pageable = PageRequest.of(0, limit);
+        List<Long> mostLikedPlaylistIds = likeRepository.findMostLikedPlaylistIds(pageable);
+
+        if (mostLikedPlaylistIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<Playlist> playlists = playlistRepository.findAllById(mostLikedPlaylistIds);
+
+        playlists.sort(Comparator.comparing(playlist -> mostLikedPlaylistIds.indexOf(playlist.getId())));
+
+        return playlists.stream()
+                .map(playlist -> playlistMapper.toDto(playlist, currentUser))
                 .collect(Collectors.toList());
     }
 }

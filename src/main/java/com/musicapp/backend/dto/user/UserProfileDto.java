@@ -1,4 +1,3 @@
-// File: src/main/java/com/musicapp/backend/dto/user/UserProfileDto.java
 package com.musicapp.backend.dto.user;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -29,4 +28,5 @@ public class UserProfileDto {
     private List<String> roles;
     private String subscriptionStatus;
     private LocalDate subscriptionEndDate;
+    private boolean hasActiveSubscription;
 }

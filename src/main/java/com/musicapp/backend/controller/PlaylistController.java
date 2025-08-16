@@ -1,4 +1,4 @@
-// File: src/main/java/com/musicapp/backend/controller/PlaylistController.java
+// backend/src/main/java/com/musicapp/backend/controller/PlaylistController.java
 package com.musicapp.backend.controller;
 import com.musicapp.backend.dto.BaseResponse;
 import com.musicapp.backend.dto.playlist.*;
@@ -35,7 +35,7 @@ public class PlaylistController {
     }
 
     @GetMapping("/my-playlists")
-    @PreAuthorize("hasAnyRole('USER', 'CREATOR', 'ADMIN')") // Giữ lại fix từ lần trước
+    @PreAuthorize("hasAnyRole('USER', 'CREATOR', 'ADMIN')")
     public ResponseEntity<BaseResponse<List<PlaylistDto>>> getMyPlaylists(@AuthenticationPrincipal User currentUser) {
         List<PlaylistDto> playlists = playlistService.getMyPlaylists(currentUser);
         return ResponseEntity.ok(BaseResponse.success(playlists));
@@ -129,6 +129,24 @@ public class PlaylistController {
             @RequestParam(defaultValue = "8") int limit,
             @AuthenticationPrincipal User currentUser) {
         List<PlaylistDto> playlists = playlistService.getTopListenedPlaylists(limit, currentUser);
+        return ResponseEntity.ok(BaseResponse.success(playlists));
+    }
+
+    @GetMapping("/recent")
+    @PreAuthorize("permitAll()")
+    public ResponseEntity<BaseResponse<List<PlaylistDto>>> getRecentPlaylists(
+            @RequestParam(defaultValue = "8") int limit,
+            @AuthenticationPrincipal User currentUser) {
+        List<PlaylistDto> playlists = playlistService.getRecentPlaylists(limit, currentUser);
+        return ResponseEntity.ok(BaseResponse.success(playlists));
+    }
+
+    @GetMapping("/most-liked")
+    @PreAuthorize("permitAll()")
+    public ResponseEntity<BaseResponse<List<PlaylistDto>>> getMostLikedPlaylists(
+            @RequestParam(defaultValue = "8") int limit,
+            @AuthenticationPrincipal User currentUser) {
+        List<PlaylistDto> playlists = playlistService.getMostLikedPlaylists(limit, currentUser);
         return ResponseEntity.ok(BaseResponse.success(playlists));
     }
 }
