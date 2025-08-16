@@ -17,6 +17,7 @@ import com.musicapp.backend.repository.SongRepository;
 import com.musicapp.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -206,6 +207,15 @@ public class SingerService {
                 .getContent()
                 .stream()
                 .map(singerMapper::toDtoWithoutSongCount)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<SingerDto> getTopSingers(int limit) {
+        Pageable pageable = PageRequest.of(0, limit);
+        List<Singer> singers = singerRepository.findTopApprovedSingersBySongCount(pageable);
+        return singers.stream()
+                .map(singerMapper::toDto)
                 .collect(Collectors.toList());
     }
 }

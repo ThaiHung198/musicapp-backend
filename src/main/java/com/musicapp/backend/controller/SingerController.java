@@ -30,6 +30,14 @@ public class SingerController {
 
     private final SingerService singerService;
 
+    @GetMapping("/top")
+    @PreAuthorize("permitAll()")
+    public ResponseEntity<BaseResponse<List<SingerDto>>> getTopSingers(
+            @RequestParam(defaultValue = "8") int limit) {
+        List<SingerDto> singers = singerService.getTopSingers(limit);
+        return ResponseEntity.ok(BaseResponse.success(singers));
+    }
+
     @GetMapping("/search")
     @PreAuthorize("permitAll()")
     public ResponseEntity<BaseResponse<Page<SingerDto>>> searchSingers(

@@ -69,4 +69,7 @@ public interface SingerRepository extends JpaRepository<Singer, Long> {
     @Query("SELECT s FROM Singer s WHERE s.status = 'APPROVED' AND LOWER(s.name) LIKE LOWER(CONCAT('%', :keyword, '%'))")
     Page<Singer> searchApprovedSingersByName(@Param("keyword") String keyword, Pageable pageable);
 
+    @Query("SELECT s FROM Singer s JOIN s.songs song WHERE s.status = 'APPROVED' GROUP BY s.id ORDER BY COUNT(song.id) DESC")
+    List<Singer> findTopApprovedSingersBySongCount(Pageable pageable);
+
 }
