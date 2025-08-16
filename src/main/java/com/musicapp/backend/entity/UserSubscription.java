@@ -55,8 +55,8 @@ public class UserSubscription {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @OneToMany(mappedBy = "subscription", cascade = CascadeType.ALL)
-    private Set<Transaction> transactions;
+    @OneToOne(mappedBy = "subscription", cascade = CascadeType.ALL)
+    private Transaction transaction;
 
     public enum SubscriptionStatus {
         ACTIVE("Active"),
