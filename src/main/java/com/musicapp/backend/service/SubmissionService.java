@@ -489,7 +489,7 @@ public class SubmissionService {
 
         List<Notification> notifications = new ArrayList<>();
         String message = creator.getDisplayName() + " vừa gửi một bài hát mới để duyệt: " + submission.getTitle();
-        String link = "/admin/submissions/" + submission.getId();
+        String link = "/admin/submissions";
 
         for (User admin : admins) {
             Notification notification = Notification.builder()

@@ -30,6 +30,15 @@ public class SingerController {
 
     private final SingerService singerService;
 
+    @GetMapping("/search")
+    @PreAuthorize("permitAll()")
+    public ResponseEntity<BaseResponse<Page<SingerDto>>> searchSingers(
+            @RequestParam String keyword,
+            @PageableDefault(size = 10) Pageable pageable) {
+        Page<SingerDto> singers = singerService.searchSingers(keyword, pageable);
+        return ResponseEntity.ok(BaseResponse.success(singers));
+    }
+
     @GetMapping("/admin/all")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BaseResponse<PagedResponse<SingerDto>>> getAllSingersForAdmin(
@@ -51,7 +60,6 @@ public class SingerController {
         return ResponseEntity.ok(BaseResponse.success("Admin created singer successfully", newSinger));
     }
 
-    // START-CHANGE: Thêm endpoint mới để tạo nhiều ca sĩ
     @PostMapping(value = "/admin/batch", consumes = { MediaType.MULTIPART_FORM_DATA_VALUE })
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BaseResponse<List<SingerDto>>> createMultipleSingersByAdmin(

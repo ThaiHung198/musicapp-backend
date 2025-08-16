@@ -8,10 +8,8 @@ import lombok.NoArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.Set;
 
 @Getter
 @Setter
@@ -55,8 +53,8 @@ public class UserSubscription {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @OneToMany(mappedBy = "subscription", cascade = CascadeType.ALL)
-    private Set<Transaction> transactions;
+    @OneToOne(mappedBy = "subscription", cascade = CascadeType.ALL)
+    private Transaction transaction;
 
     public enum SubscriptionStatus {
         ACTIVE("Active"),

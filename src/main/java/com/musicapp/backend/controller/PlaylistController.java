@@ -23,6 +23,16 @@ import java.util.List;
 public class PlaylistController {
     private final PlaylistService playlistService;
 
+    @GetMapping("/search")
+    @PreAuthorize("permitAll()")
+    public ResponseEntity<BaseResponse<Page<PlaylistDto>>> searchPlaylists(
+            @RequestParam String keyword,
+            @PageableDefault(size = 10) Pageable pageable,
+            @AuthenticationPrincipal User currentUser) {
+        Page<PlaylistDto> playlists = playlistService.searchPublicPlaylists(keyword, pageable, currentUser);
+        return ResponseEntity.ok(BaseResponse.success(playlists));
+    }
+
     @PostMapping
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse<PlaylistDto>> createPlaylist(

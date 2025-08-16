@@ -9,9 +9,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.Map;
 
 @RestController
@@ -21,37 +21,35 @@ public class NotificationController {
 
     private final NotificationService notificationService;
 
-    // Lấy danh sách thông báo của tôi (phân trang)
-    @GetMapping("/my")
-    public ResponseEntity<BaseResponse<PagedResponse<NotificationDto>>> getMyNotifications(
+    @GetMapping
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<BaseResponse<PagedResponse<NotificationDto>>> getNotifications(
             @AuthenticationPrincipal User currentUser,
             @PageableDefault(size = 10) Pageable pageable) {
-        PagedResponse<NotificationDto> response = notificationService.getMyNotifications(currentUser, pageable);
-        return ResponseEntity.ok(BaseResponse.success("Lấy danh sách thông báo thành công.", response));
-    }
-
-    // Lấy số thông báo chưa đọc
-    @GetMapping("/my/unread-count")
-    public ResponseEntity<BaseResponse<Map<String, Long>>> getMyUnreadCount(
-            @AuthenticationPrincipal User currentUser) {
-        Map<String, Long> response = notificationService.getMyUnreadCount(currentUser);
+        PagedResponse<NotificationDto> response = notificationService.getNotificationsForUser(currentUser, pageable);
         return ResponseEntity.ok(BaseResponse.success(response));
     }
 
-    // Đánh dấu một thông báo là đã đọc
+    @GetMapping("/unread-count")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<BaseResponse<Map<String, Long>>> getUnreadCount(@AuthenticationPrincipal User currentUser) {
+        long count = notificationService.countUnreadNotifications(currentUser);
+        return ResponseEntity.ok(BaseResponse.success(Map.of("count", count)));
+    }
+
     @PostMapping("/{id}/read")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse<Void>> markAsRead(
             @PathVariable Long id,
             @AuthenticationPrincipal User currentUser) {
         notificationService.markAsRead(id, currentUser);
-        return ResponseEntity.ok(BaseResponse.success("Đã đánh dấu thông báo là đã đọc.", null));
+        return ResponseEntity.ok(BaseResponse.success("Đã đánh dấu là đã đọc.", null));
     }
 
-    // Đánh dấu tất cả thông báo là đã đọc
-    @PostMapping("/mark-all-as-read")
-    public ResponseEntity<BaseResponse<Void>> markAllAsRead(
-            @AuthenticationPrincipal User currentUser) {
+    @PostMapping("/read-all")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<BaseResponse<Void>> markAllAsRead(@AuthenticationPrincipal User currentUser) {
         notificationService.markAllAsRead(currentUser);
-        return ResponseEntity.ok(BaseResponse.success("Đã đánh dấu tất cả thông báo là đã đọc.", null));
+        return ResponseEntity.ok(BaseResponse.success("Đã đánh dấu tất cả là đã đọc.", null));
     }
 }

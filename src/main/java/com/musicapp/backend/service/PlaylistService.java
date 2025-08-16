@@ -10,9 +10,7 @@ import com.musicapp.backend.exception.BadRequestException;
 import com.musicapp.backend.exception.ResourceNotFoundException;
 import com.musicapp.backend.exception.UnauthorizedException;
 import com.musicapp.backend.mapper.PlaylistMapper;
-// --- BẮT ĐẦU CHỈNH SỬA: Import LikeRepository ---
 import com.musicapp.backend.repository.LikeRepository;
-// --- KẾT THÚC CHỈNH SỬA ---
 import com.musicapp.backend.repository.PlaylistRepository;
 import com.musicapp.backend.repository.SongRepository;
 import lombok.RequiredArgsConstructor;
@@ -40,10 +38,12 @@ public class PlaylistService {
     private final FileStorageService fileStorageService;
     private final SongRepository songRepository;
     private final PlaylistMapper playlistMapper;
-    // --- BẮT ĐẦU CHỈNH SỬA: Inject LikeRepository ---
     private final LikeRepository likeRepository;
-    // --- KẾT THÚC CHỈNH SỬA ---
 
+    public Page<PlaylistDto> searchPublicPlaylists(String keyword, Pageable pageable, User currentUser) {
+        Page<Playlist> playlistPage = playlistRepository.searchPublicPlaylistsByName(keyword, pageable);
+        return playlistPage.map(p -> playlistMapper.toDto(p, currentUser));
+    }
 
     @Transactional
     public PlaylistDto createPlaylist(CreatePlaylistRequest request, MultipartFile thumbnailFile, User currentUser) {

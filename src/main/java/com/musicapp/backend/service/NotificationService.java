@@ -14,41 +14,40 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Map;
-
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final NotificationMapper notificationMapper;
 
-    public PagedResponse<NotificationDto> getMyNotifications(User currentUser, Pageable pageable) {
-        Page<Notification> notificationPage = notificationRepository.findByRecipientIdOrderByCreatedAtDesc(currentUser.getId(), pageable);
-        return PagedResponse.of(notificationPage.map(notificationMapper::toDto).getContent(), notificationPage);
+    @Transactional(readOnly = true)
+    public PagedResponse<NotificationDto> getNotificationsForUser(User user, Pageable pageable) {
+        Page<Notification> notificationPage = notificationRepository.findByRecipientIdOrderByCreatedAtDesc(user.getId(), pageable);
+        Page<NotificationDto> dtoPage = notificationPage.map(notificationMapper::toDto);
+        return PagedResponse.of(dtoPage.getContent(), dtoPage);
     }
 
-    public Map<String, Long> getMyUnreadCount(User currentUser) {
-        long count = notificationRepository.countByRecipientIdAndIsReadFalse(currentUser.getId());
-        return Map.of("unreadCount", count);
-    }
-
-    @Transactional
-    public void markAllAsRead(User currentUser) {
-        notificationRepository.markAllAsReadForRecipient(currentUser.getId());
+    @Transactional(readOnly = true)
+    public long countUnreadNotifications(User user) {
+        return notificationRepository.countByRecipientIdAndIsReadFalse(user.getId());
     }
 
     @Transactional
-    public void markAsRead(Long notificationId, User currentUser) {
+    public void markAsRead(Long notificationId, User user) {
         Notification notification = notificationRepository.findById(notificationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Notification not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thông báo với ID: " + notificationId));
 
-        if (!notification.getRecipient().getId().equals(currentUser.getId())) {
-            throw new UnauthorizedException("You are not authorized to access this notification");
+        if (!notification.getRecipient().getId().equals(user.getId())) {
+            throw new UnauthorizedException("Bạn không có quyền truy cập thông báo này.");
         }
 
         notification.setRead(true);
         notificationRepository.save(notification);
+    }
+
+    @Transactional
+    public void markAllAsRead(User user) {
+        notificationRepository.markAllAsReadForRecipient(user.getId());
     }
 }

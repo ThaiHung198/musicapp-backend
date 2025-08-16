@@ -70,7 +70,6 @@ public class SingerService {
         return singerMapper.toDto(savedSinger);
     }
 
-    // START-CHANGE: Thêm phương thức mới để tạo nhiều ca sĩ
     @Transactional
     public List<SingerDto> createMultipleSingersByAdmin(AdminCreateMultipleSingersRequest request, List<MultipartFile> avatarFiles, User admin) {
         List<Singer> newSingers = new ArrayList<>();
@@ -182,7 +181,8 @@ public class SingerService {
 
     @Transactional(readOnly = true)
     public Page<SingerDto> searchSingers(String keyword, Pageable pageable) {
-        return singerRepository.searchAllWithSongCount(keyword, pageable);
+        Page<Singer> singerPage = singerRepository.searchApprovedSingersByName(keyword, pageable);
+        return singerPage.map(singerMapper::toDto);
     }
 
     @Transactional(readOnly = true)
