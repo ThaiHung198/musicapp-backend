@@ -198,6 +198,11 @@ public class UserService {
 
     @Transactional
     public void changePassword(User currentUser, ChangePasswordRequest request) {
+        // Kiểm tra xem tài khoản có phải được tạo từ Google không
+        if ("google".equals(currentUser.getProvider())) {
+            throw new BadRequestException("Tài khoản đăng nhập bằng Google không thể đổi mật khẩu theo cách này.");
+        }
+
         if (!request.getNewPassword().equals(request.getConfirmationPassword())) {
             throw new BadRequestException("Mật khẩu mới và mật khẩu xác nhận không khớp.");
         }
