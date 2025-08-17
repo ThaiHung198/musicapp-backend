@@ -1,17 +1,19 @@
 package com.musicapp.backend.service;
 
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.musicapp.backend.exception.BadRequestException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -19,10 +21,13 @@ import java.util.UUID;
 public class FileStorageService {
 
     @Autowired
-    private AmazonS3 s3Client;
+    private S3Client s3Client;
 
     @Value("${aws.s3.bucketName}")
     private String bucketName;
+
+    @Value("${aws.s3.region}")
+    private String region;
 
     public String storeFile(MultipartFile file, String subfolder) {
         String originalFileName = StringUtils.cleanPath(Objects.requireNonNull(file.getOriginalFilename()));
@@ -40,25 +45,19 @@ public class FileStorageService {
             String newFileName = UUID.randomUUID().toString() + fileExtension;
             String key = subfolder + "/" + newFileName;
 
-            File fileObj = convertMultiPartFileToFile(file);
-            s3Client.putObject(new PutObjectRequest(bucketName, key, fileObj));
-            fileObj.delete();
+            PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(key)
+                    .build();
 
-            return s3Client.getUrl(bucketName, key).toString();
+            s3Client.putObject(putObjectRequest, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
 
-        } catch (Exception ex) {
+            // THAY ĐỔI QUAN TRỌNG: Trả về đường dẫn tương đối để phục vụ qua backend
+            return "/uploads/" + key;
+
+        } catch (IOException ex) {
             throw new RuntimeException("Could not store file " + originalFileName + ". Please try again!", ex);
         }
-    }
-
-    private File convertMultiPartFileToFile(MultipartFile file) {
-        File convertedFile = new File(Objects.requireNonNull(file.getOriginalFilename()));
-        try (FileOutputStream fos = new FileOutputStream(convertedFile)) {
-            fos.write(file.getBytes());
-        } catch (IOException e) {
-            throw new RuntimeException("Error converting multipartFile to file", e);
-        }
-        return convertedFile;
     }
 
     public void deleteFile(String fileUrl) {
@@ -67,10 +66,17 @@ public class FileStorageService {
         }
 
         try {
-            String key = fileUrl.substring(fileUrl.indexOf(".com/") + 5);
-            s3Client.deleteObject(bucketName, key);
+            // Giả sử fileUrl có dạng /uploads/images/songs/filename.jpg
+            String key = fileUrl.substring(fileUrl.indexOf("/uploads/") + 9);
+
+            DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(key)
+                    .build();
+
+            s3Client.deleteObject(deleteObjectRequest);
         } catch (Exception e) {
-            System.err.println("Could not delete file: " + fileUrl + ". Reason: " + e.getMessage());
+            System.err.println("Could not delete file from S3: " + fileUrl + ". Reason: " + e.getMessage());
         }
     }
 }
