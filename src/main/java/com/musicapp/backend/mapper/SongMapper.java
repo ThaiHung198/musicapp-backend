@@ -9,6 +9,7 @@ import com.musicapp.backend.repository.SongCommentRepository;
 import com.musicapp.backend.service.SubscriptionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional; // Import thêm
 
 import java.util.stream.Collectors;
 
@@ -22,6 +23,9 @@ public class SongMapper {
     private final SongCommentRepository songCommentRepository;
     private final SubscriptionService subscriptionService;
 
+    // START-FIX: Thêm @Transactional(readOnly = true) để đảm bảo có thể load lazy entity
+    @Transactional(readOnly = true)
+    // END-FIX
     public SongDto toDto(Song song, User currentUser) {
         if (song == null) return null;
 
@@ -29,6 +33,9 @@ public class SongMapper {
         if (song.getIsPremium()) {
             canAccess = (currentUser != null && subscriptionService.hasActivePremiumSubscription(currentUser.getId()));
         }
+
+        Long creatorId = song.getCreator() != null ? song.getCreator().getId() : null;
+        String creatorName = song.getCreator() != null ? song.getCreator().getDisplayName() : "Hệ thống";
 
         return SongDto.builder()
                 .id(song.getId())
@@ -39,8 +46,8 @@ public class SongMapper {
                 .listenCount(song.getListenCount())
                 .status(song.getStatus().name())
                 .createdAt(song.getCreatedAt())
-                .creatorId(song.getCreator().getId())
-                .creatorName(song.getCreator().getDisplayName())
+                .creatorId(creatorId)
+                .creatorName(creatorName)
                 .isPremium(song.getIsPremium())
                 .canAccess(canAccess)
                 .singers(song.getSingers() != null ?
@@ -53,14 +60,18 @@ public class SongMapper {
                                 .collect(Collectors.toList()) : null)
                 .likeCount(likeRepository.countByLikeableIdAndLikeableType(song.getId(), Like.LikeableType.SONG))
                 .commentCount(songCommentRepository.countBySongId(song.getId()))
-                .isLikedByCurrentUser(currentUser != null ?
+                .isLikedByCurrentUser(currentUser != null &&
                         likeRepository.existsByUserIdAndLikeableIdAndLikeableType(
-                                currentUser.getId(), song.getId(), Like.LikeableType.SONG) : false)
+                                currentUser.getId(), song.getId(), Like.LikeableType.SONG))
                 .build();
     }
 
+    @Transactional(readOnly = true)
     public SongDto toDtoBasic(Song song) {
         if (song == null) return null;
+
+        Long creatorId = song.getCreator() != null ? song.getCreator().getId() : null;
+        String creatorName = song.getCreator() != null ? song.getCreator().getDisplayName() : "Hệ thống";
 
         return SongDto.builder()
                 .id(song.getId())
@@ -71,8 +82,8 @@ public class SongMapper {
                 .listenCount(song.getListenCount())
                 .status(song.getStatus().name())
                 .createdAt(song.getCreatedAt())
-                .creatorId(song.getCreator().getId())
-                .creatorName(song.getCreator().getDisplayName())
+                .creatorId(creatorId)
+                .creatorName(creatorName)
                 .build();
     }
 }

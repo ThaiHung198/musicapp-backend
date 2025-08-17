@@ -12,5 +12,5 @@ import lombok.NoArgsConstructor;
 public class TagDto {
     private Long id;
     private String name;
-    private Long songCount;
+    private long songCount;
 }

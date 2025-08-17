@@ -1,6 +1,8 @@
 package com.musicapp.backend.repository;
 
+import com.musicapp.backend.entity.Singer;
 import com.musicapp.backend.entity.Song;
+import com.musicapp.backend.entity.Tag;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -9,11 +11,15 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface SongRepository extends JpaRepository<Song, Long> {
+
+    @Query("SELECT s FROM Song s JOIN FETCH s.creator WHERE s.id IN :ids")
+    List<Song> findByIdInWithCreator(@Param("ids") Collection<Long> ids);
 
     Optional<Song> findByIdAndStatus(Long id, Song.SongStatus status);
 
@@ -53,6 +59,8 @@ public interface SongRepository extends JpaRepository<Song, Long> {
     long countByStatus(Song.SongStatus status);
 
     long countByCreatorId(Long creatorId);
+
+    long countBySingersContains(Singer singer);
 
     Page<Song> findByIsPremiumTrueAndStatusOrderByCreatedAtDesc(Song.SongStatus status, Pageable pageable);
     Page<Song> findByIsPremiumFalseAndStatusOrderByCreatedAtDesc(Song.SongStatus status, Pageable pageable);
@@ -94,4 +102,6 @@ public interface SongRepository extends JpaRepository<Song, Long> {
     long countByCreatorIdAndStatus(Long creatorId, Song.SongStatus status);
 
     List<Song> findBySingersIdAndStatus(Long singerId, Song.SongStatus status);
+
+    long countByTagsContains(Tag tag);
 }

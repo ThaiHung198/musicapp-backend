@@ -7,10 +7,13 @@ import com.musicapp.backend.dto.user.AdminUserViewDto;
 import com.musicapp.backend.entity.Role;
 import com.musicapp.backend.entity.Song;
 import com.musicapp.backend.entity.User;
+import com.musicapp.backend.entity.UserSubscription;
+import com.musicapp.backend.service.SubscriptionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Component
@@ -18,13 +21,20 @@ import java.util.stream.Collectors;
 public class UserMapper {
 
     private final SongMapper songMapper;
+    private final SubscriptionService subscriptionService;
 
     public UserProfileDto toUserProfileDto(User user) {
         if (user == null) {
             return null;
         }
 
-        return UserProfileDto.builder()
+        Optional<UserSubscription> activeSubscriptionOpt = user.getSubscriptions().stream()
+                .filter(sub -> sub.getStatus() == UserSubscription.SubscriptionStatus.ACTIVE)
+                .findFirst();
+
+        boolean hasActiveSub = subscriptionService.hasActivePremiumSubscription(user.getId());
+
+        UserProfileDto.UserProfileDtoBuilder builder = UserProfileDto.builder()
                 .id(user.getId())
                 .displayName(user.getDisplayName())
                 .email(user.getEmail())
@@ -37,7 +47,14 @@ public class UserMapper {
                 .roles(user.getRoles().stream()
                         .map(Role::getName)
                         .collect(Collectors.toList()))
-                .build();
+                .hasActiveSubscription(hasActiveSub);
+
+        activeSubscriptionOpt.ifPresent(sub -> {
+            builder.subscriptionStatus(sub.getStatus().name());
+            builder.subscriptionEndDate(sub.getEndDate().toLocalDate());
+        });
+
+        return builder.build();
     }
 
     public AdminUserViewDto toAdminUserViewDto(User user, boolean isPremium) {

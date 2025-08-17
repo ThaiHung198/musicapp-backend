@@ -6,6 +6,7 @@ import com.musicapp.backend.dto.transaction.CreatePaymentRequest;
 import com.musicapp.backend.dto.transaction.PaymentResponse;
 import com.musicapp.backend.dto.transaction.TransactionDto;
 import com.musicapp.backend.service.TransactionService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -18,15 +19,12 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/v1/transactions") // Đổi đường dẫn API cho nhất quán
+@RequestMapping("/api/v1/transactions")
 @RequiredArgsConstructor
 public class TransactionController {
 
     private final TransactionService transactionService;
 
-    /**
-     * Lấy lịch sử giao dịch của người dùng đang đăng nhập.
-     */
     @GetMapping("/my")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<PagedResponse<TransactionDto>> getMyTransactions(
@@ -39,9 +37,6 @@ public class TransactionController {
         return ResponseEntity.ok(transactions);
     }
 
-    /**
-     * Lấy chi tiết một giao dịch theo ID.
-     */
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse<TransactionDto>> getTransaction(
@@ -51,26 +46,31 @@ public class TransactionController {
         TransactionDto transaction = transactionService.getTransactionById(id, username);
         return ResponseEntity.ok(BaseResponse.success("Transaction retrieved successfully", transaction));
     }
+
+    // --- BẮT ĐẦU SỬA ĐỔI ---
     @PostMapping("/create-payment")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse<PaymentResponse>> createPayment(
             @Valid @RequestBody CreatePaymentRequest request,
+            HttpServletRequest httpServletRequest,
             Authentication authentication
     ) {
         String username = authentication.getName();
-        PaymentResponse paymentResponse = transactionService.createPaymentUrl(username, request);
+        // Sửa lại: Gọi hàm createPaymentUrl duy nhất trong service
+        PaymentResponse paymentResponse = transactionService.createPaymentUrl(username, request, httpServletRequest);
         return ResponseEntity.ok(BaseResponse.success("Tạo link thanh toán thành công.", paymentResponse));
     }
+    // --- KẾT THÚC SỬA ĐỔI ---
 
-    /**
-     * <<< ENDPOINT MỚI: Endpoint IPN cho MoMo.
-     * Endpoint này phải là public để MoMo có thể gọi.
-     */
     @PostMapping("/momo-ipn")
     public ResponseEntity<Void> handleMomoIpn(@RequestBody Map<String, Object> payload) {
         transactionService.processMomoIpn(payload);
-        // Theo tài liệu MoMo, chỉ cần trả về status 204 No Content là đủ.
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/vnpay-payment-result")
+    public ResponseEntity<Void> handleVnpayPaymentResult(@RequestParam Map<String, String> allParams) {
+        transactionService.processVnpayPaymentResult(allParams);
+        return ResponseEntity.noContent().build();
+    }
 }

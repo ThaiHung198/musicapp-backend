@@ -148,8 +148,9 @@ public class SongController {
             @RequestPart("songRequest") @Valid AdminCreateSongRequest request,
             @RequestPart("audioFile") MultipartFile audioFile,
             @RequestPart(value = "thumbnailFile", required = false) MultipartFile thumbnailFile,
+            @RequestPart(value = "newSingerAvatars", required = false) List<MultipartFile> newSingerAvatars,
             @AuthenticationPrincipal User admin) {
-        SongDto newSong = songService.createSongByAdmin(request, audioFile, thumbnailFile, admin);
+        SongDto newSong = songService.createSongByAdmin(request, audioFile, thumbnailFile, newSingerAvatars, admin);
         return ResponseEntity.ok(BaseResponse.success("Song created and approved successfully", newSong));
     }
 
@@ -242,7 +243,7 @@ public class SongController {
     }
 
     @GetMapping("/my-library")
-    @PreAuthorize("hasRole('CREATOR')")
+    @PreAuthorize("hasAnyRole('CREATOR', 'ADMIN')")
     public ResponseEntity<BaseResponse<PagedResponse<SongDto>>> getMyLibrary(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,

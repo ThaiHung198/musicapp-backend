@@ -12,6 +12,7 @@ import com.musicapp.backend.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +28,7 @@ public class CommentService {
     private final SongCommentRepository songCommentRepository;
     private final PlaylistCommentRepository playlistCommentRepository;
     private final CommentMapper commentMapper;
+    private final NotificationRepository notificationRepository;
 
     @Transactional
     public CommentDto createCommentForSong(Long songId, User currentUser, CreateCommentRequest request) {
@@ -35,6 +37,19 @@ public class CommentService {
 
         SongComment comment = new SongComment(currentUser, request.getContent(), song);
         SongComment savedComment = songCommentRepository.save(comment);
+
+        // --- LOGIC TẠO THÔNG BÁO ---
+        User creator = song.getCreator();
+        if (creator != null && !creator.getId().equals(currentUser.getId())) {
+            Notification notification = Notification.builder()
+                    .recipient(creator)
+                    .actor(currentUser)
+                    .type(Notification.NotificationType.SONG_COMMENT)
+                    .message(currentUser.getDisplayName() + " đã bình luận về bài hát của bạn: " + song.getTitle())
+                    .link("/song/" + song.getId())
+                    .build();
+            notificationRepository.save(notification);
+        }
 
         return commentMapper.toDto(savedComment);
     }
@@ -46,6 +61,19 @@ public class CommentService {
 
         PlaylistComment comment = new PlaylistComment(currentUser, request.getContent(), playlist);
         PlaylistComment savedComment = playlistCommentRepository.save(comment);
+
+        // --- LOGIC TẠO THÔNG BÁO ---
+        User creator = playlist.getCreator();
+        if (creator != null && !creator.getId().equals(currentUser.getId())) {
+            Notification notification = Notification.builder()
+                    .recipient(creator)
+                    .actor(currentUser)
+                    .type(Notification.NotificationType.PLAYLIST_COMMENT)
+                    .message(currentUser.getDisplayName() + " đã bình luận về playlist của bạn: " + playlist.getName())
+                    .link("/playlist/" + playlist.getId())
+                    .build();
+            notificationRepository.save(notification);
+        }
 
         return commentMapper.toDto(savedComment);
     }
@@ -71,7 +99,11 @@ public class CommentService {
         SongComment comment = songCommentRepository.findById(commentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy bình luận với ID: " + commentId));
 
-        if (!comment.getUser().getId().equals(currentUser.getId())) {
+        boolean isAdmin = currentUser.getAuthorities().stream()
+                .anyMatch(grantedAuthority -> grantedAuthority.getAuthority().equals("ROLE_ADMIN"));
+        boolean isOwner = comment.getUser().getId().equals(currentUser.getId());
+
+        if (!isOwner && !isAdmin) {
             throw new UnauthorizedException("Bạn không có quyền xóa bình luận này.");
         }
         songCommentRepository.delete(comment);
@@ -82,7 +114,11 @@ public class CommentService {
         PlaylistComment comment = playlistCommentRepository.findById(commentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy bình luận với ID: " + commentId));
 
-        if (!comment.getUser().getId().equals(currentUser.getId())) {
+        boolean isAdmin = currentUser.getAuthorities().stream()
+                .anyMatch(grantedAuthority -> grantedAuthority.getAuthority().equals("ROLE_ADMIN"));
+        boolean isOwner = comment.getUser().getId().equals(currentUser.getId());
+
+        if (!isOwner && !isAdmin) {
             throw new UnauthorizedException("Bạn không có quyền xóa bình luận này.");
         }
         playlistCommentRepository.delete(comment);

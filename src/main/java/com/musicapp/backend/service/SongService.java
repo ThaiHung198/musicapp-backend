@@ -8,6 +8,7 @@ import com.musicapp.backend.dto.song.SongDto;
 import com.musicapp.backend.dto.song.UpdateSongRequest;
 import com.musicapp.backend.entity.*;
 import com.musicapp.backend.exception.BadRequestException;
+import com.musicapp.backend.exception.ResourceAlreadyExistsException;
 import com.musicapp.backend.exception.ResourceNotFoundException;
 import com.musicapp.backend.exception.UnauthorizedException;
 import com.musicapp.backend.mapper.SongMapper;
@@ -27,10 +28,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.Map;
+import java.util.function.Function;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 public class SongService {
 
     private final SongRepository songRepository;
@@ -44,6 +46,7 @@ public class SongService {
     private final PlaylistRepository playlistRepository;
 
 
+    @Transactional(readOnly = true)
     public List<SongDto> getAllSongsForPlaylist(User currentUser) {
         List<Song> songs;
         boolean isCreator = currentUser.getAuthorities().stream()
@@ -60,6 +63,7 @@ public class SongService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public List<SongDto> searchApprovedSongsForPlaylist(Long playlistId, String keyword, User currentUser) {
         if (!playlistRepository.existsById(playlistId)) {
             throw new ResourceNotFoundException("Không tìm thấy playlist với ID: " + playlistId);
@@ -72,6 +76,7 @@ public class SongService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public Page<SongDto> getAllSongsForAdmin(String keyword, Pageable pageable, User admin) {
         Page<Song> songPage;
         if (keyword != null && !keyword.trim().isEmpty()) {
@@ -82,6 +87,7 @@ public class SongService {
         return songPage.map(song -> songMapper.toDto(song, admin));
     }
 
+    @Transactional(readOnly = true)
     public Page<SongDto> getAllApprovedSongs(Pageable pageable, User currentUser) {
         return songRepository.findByStatusOrderByCreatedAtDesc(Song.SongStatus.APPROVED, pageable)
                 .map(song -> songMapper.toDto(song, currentUser));
@@ -104,17 +110,20 @@ public class SongService {
         return songMapper.toDto(updatedSong, admin);
     }
 
+    @Transactional(readOnly = true)
     public Page<SongDto> searchSongs(String keyword, Pageable pageable, User currentUser) {
         return songRepository.searchApprovedSongs(keyword, Song.SongStatus.APPROVED, pageable)
                 .map(song -> songMapper.toDto(song, currentUser));
     }
 
+    @Transactional(readOnly = true)
     public SongDto getSongById(Long songId, User currentUser) {
         Song song = songRepository.findByIdAndStatus(songId, Song.SongStatus.APPROVED)
                 .orElseThrow(() -> new ResourceNotFoundException("Song not found with id: " + songId));
         return songMapper.toDto(song, currentUser);
     }
 
+    @Transactional(readOnly = true)
     public SongDto getSongByIdForCreator(Long id, User creator) {
         Song song = songRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Song not found with id: " + id));
@@ -127,11 +136,13 @@ public class SongService {
         return songMapper.toDto(song, creator);
     }
 
+    @Transactional(readOnly = true)
     public Page<SongDto> getUserCreatedSongs(Long userId, Pageable pageable, User currentUser) {
         return songRepository.findByCreatorIdOrderByCreatedAtDesc(userId, pageable)
                 .map(song -> songMapper.toDto(song, currentUser));
     }
 
+    @Transactional(readOnly = true)
     public Page<SongDto> getSongsBySinger(Long singerId, Pageable pageable, User currentUser) {
         if (!singerRepository.existsById(singerId)) {
             throw new ResourceNotFoundException("Không tìm thấy ca sĩ với ID: " + singerId);
@@ -141,6 +152,7 @@ public class SongService {
                 .map(song -> songMapper.toDto(song, currentUser));
     }
 
+    @Transactional(readOnly = true)
     public List<SongDto> getTopSongsByListenCount(int limit, User currentUser) {
         Pageable pageable = PageRequest.of(0, limit);
         return songRepository.findTopSongsByListenCount(pageable)
@@ -149,6 +161,7 @@ public class SongService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public List<SongDto> getRecentlyCreatedSongs(int limit, User currentUser) {
         Pageable pageable = PageRequest.of(0, limit);
         return songRepository.findRecentlyCreatedSongs(pageable)
@@ -157,6 +170,7 @@ public class SongService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public List<SongDto> getMostLikedSongs(int limit, User currentUser) {
         Pageable pageable = PageRequest.of(0, limit);
 
@@ -176,21 +190,57 @@ public class SongService {
     }
 
     @Transactional
-    public SongDto createSongByAdmin(AdminCreateSongRequest request, MultipartFile audioFile, MultipartFile thumbnailFile, User admin) {
+    public SongDto createSongByAdmin(AdminCreateSongRequest request, MultipartFile audioFile, MultipartFile thumbnailFile, List<MultipartFile> newSingerAvatars, User admin) {
+        if ((request.getSingerIds() == null || request.getSingerIds().isEmpty()) &&
+                (request.getNewSingers() == null || request.getNewSingers().isEmpty())) {
+            throw new BadRequestException("At least one existing singer or one new singer is required.");
+        }
+
         String audioFilePath = fileStorageService.storeFile(audioFile, "audio");
-        String thumbnailFilePath = null;
-        if (thumbnailFile != null && !thumbnailFile.isEmpty()) {
-            thumbnailFilePath = fileStorageService.storeFile(thumbnailFile, "images/songs");
+        String thumbnailFilePath = (thumbnailFile != null && !thumbnailFile.isEmpty())
+                ? fileStorageService.storeFile(thumbnailFile, "images/songs")
+                : null;
+
+        Set<Singer> singers = new HashSet<>();
+        // 1. Xử lý ca sĩ đã tồn tại
+        if (request.getSingerIds() != null && !request.getSingerIds().isEmpty()) {
+            List<Singer> existingSingers = singerRepository.findAllById(request.getSingerIds());
+            if (existingSingers.size() != request.getSingerIds().size()) {
+                throw new ResourceNotFoundException("One or more existing singers not found.");
+            }
+            existingSingers.forEach(singer -> {
+                if (singer.getStatus() != Singer.SingerStatus.APPROVED) {
+                    throw new BadRequestException("Singer '" + singer.getName() + "' (ID: " + singer.getId() + ") is not approved yet.");
+                }
+                singers.add(singer);
+            });
         }
 
-        Set<Singer> singers = new HashSet<>(singerRepository.findAllById(request.getSingerIds()));
-        if (singers.size() != request.getSingerIds().size()) {
-            throw new ResourceNotFoundException("One or more singers not found.");
-        }
+        // 2. Xử lý ca sĩ mới và ảnh của họ
+        if (request.getNewSingers() != null && !request.getNewSingers().isEmpty()) {
+            Map<String, MultipartFile> avatarFilesMap = (newSingerAvatars != null)
+                    ? newSingerAvatars.stream().collect(Collectors.toMap(MultipartFile::getOriginalFilename, Function.identity(), (first, second) -> first))
+                    : Collections.emptyMap();
 
-        for (Singer singer : singers) {
-            if (singer.getStatus() != Singer.SingerStatus.APPROVED) {
-                throw new BadRequestException("Singer '" + singer.getName() + "' (ID: " + singer.getId() + ") is not approved yet.");
+            for (AdminCreateSongRequest.NewSingerInfo newSingerInfo : request.getNewSingers()) {
+                if (StringUtils.hasText(newSingerInfo.getEmail()) && singerRepository.existsByEmail(newSingerInfo.getEmail())) {
+                    throw new ResourceAlreadyExistsException("A singer with email '" + newSingerInfo.getEmail() + "' already exists.");
+                }
+
+                String avatarPath = null;
+                if (StringUtils.hasText(newSingerInfo.getAvatarFileName()) && avatarFilesMap.containsKey(newSingerInfo.getAvatarFileName())) {
+                    MultipartFile avatarFile = avatarFilesMap.get(newSingerInfo.getAvatarFileName());
+                    avatarPath = fileStorageService.storeFile(avatarFile, "images/singers");
+                }
+
+                Singer newSinger = Singer.builder()
+                        .name(newSingerInfo.getName())
+                        .email(newSingerInfo.getEmail())
+                        .avatarPath(avatarPath)
+                        .status(Singer.SingerStatus.APPROVED)
+                        .creator(admin)
+                        .build();
+                singers.add(singerRepository.save(newSinger));
             }
         }
 
@@ -371,11 +421,13 @@ public class SongService {
         songRepository.incrementListenCount(id);
     }
 
+    @Transactional(readOnly = true)
     public Page<SongDto> getPendingSongs(Pageable pageable) {
         return songRepository.findByStatusOrderByCreatedAtDesc(Song.SongStatus.PENDING, pageable)
                 .map(song -> songMapper.toDto(song, null));
     }
 
+    @Transactional(readOnly = true)
     public boolean canUserAccessSong(Long songId, String username) {
         Song song = songRepository.findById(songId)
                 .orElseThrow(() -> new ResourceNotFoundException("Song not found with id: " + songId));
@@ -394,6 +446,7 @@ public class SongService {
         return subscriptionService.hasActivePremiumSubscription(user.getId());
     }
 
+    @Transactional(readOnly = true)
     public SongDto getSongWithAccessCheck(Long id, String username) {
         Song song = songRepository.findByIdAndStatus(id, Song.SongStatus.APPROVED)
                 .orElseThrow(() -> new ResourceNotFoundException("Song not found with id: " + id));
@@ -411,6 +464,7 @@ public class SongService {
                 .anyMatch(grantedAuthority -> grantedAuthority.getAuthority().equals("ROLE_ADMIN"));
     }
 
+    @Transactional(readOnly = true)
     public PagedResponse<SongDto> getMyLibrary(String username, String keyword, Pageable pageable) {
         User creator = userRepository.findByEmail(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));

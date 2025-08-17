@@ -19,11 +19,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
-
+import org.springframework.web.multipart.MultipartFile;
 import com.musicapp.backend.dto.creator.CreatorViewDto;
 import com.musicapp.backend.entity.Song;
 import com.musicapp.backend.entity.Role;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
@@ -46,6 +47,8 @@ public class UserService {
     private final SongRepository songRepository;
     private final PlaylistRepository playlistRepository;
     private final SongMapper songMapper;
+    private final FileStorageService fileStorageService;
+
 
     @Transactional(readOnly = true)
     public UserProfileDto getCurrentUserProfile(User currentUser) {
@@ -152,7 +155,17 @@ public class UserService {
     }
 
     @Transactional
-    public UserProfileDto updateCurrentUserProfile(User currentUser, UpdateProfileRequest request) {
+    public UserProfileDto updateCurrentUserProfile(User currentUser, UpdateProfileRequest request, MultipartFile avatarFile) {
+        // 1. Xử lý xóa avatar
+        if (request.isRemoveAvatar()) {
+            currentUser.setAvatarPath(null);
+        }
+        else if (avatarFile != null && !avatarFile.isEmpty()) {
+            String fileName = fileStorageService.storeFile(avatarFile, "images");
+            currentUser.setAvatarPath(fileName);
+        }
+
+        // 2. Cập nhật các thông tin khác (logic này bạn đã có)
         currentUser.setDisplayName(request.getDisplayName());
 
         if (StringUtils.hasText(request.getPhoneNumber())) {
@@ -172,16 +185,24 @@ public class UserService {
         } else {
             currentUser.setGender(null);
         }
-
+        if (request.getDateOfBirth() != null && request.getDateOfBirth().isAfter(LocalDate.now())) {
+            throw new BadRequestException("Ngày sinh không được ở trong tương lai.");
+        }
         currentUser.setDateOfBirth(request.getDateOfBirth());
         currentUser.setUpdatedAt(LocalDateTime.now());
 
+        // 3. Lưu lại vào database
         User updatedUser = userRepository.save(currentUser);
         return userMapper.toUserProfileDto(updatedUser);
     }
 
     @Transactional
     public void changePassword(User currentUser, ChangePasswordRequest request) {
+        // Kiểm tra xem tài khoản có phải được tạo từ Google không
+        if ("google".equals(currentUser.getProvider())) {
+            throw new BadRequestException("Tài khoản đăng nhập bằng Google không thể đổi mật khẩu theo cách này.");
+        }
+
         if (!request.getNewPassword().equals(request.getConfirmationPassword())) {
             throw new BadRequestException("Mật khẩu mới và mật khẩu xác nhận không khớp.");
         }

@@ -1,3 +1,4 @@
+// File: src/main/java/com/musicapp/backend/dto/submission/CreateSubmissionRequest.java
 package com.musicapp.backend.dto.submission;
 
 import jakarta.validation.Valid;
@@ -43,6 +44,6 @@ public class CreateSubmissionRequest {
         @Email(message = "Invalid email format for new singer")
         private String email;
 
-        private String avatarPath; // Sẽ được service điền vào
+        private String avatarFileName;
     }
 }

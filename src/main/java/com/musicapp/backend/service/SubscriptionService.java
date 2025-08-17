@@ -2,7 +2,8 @@ package com.musicapp.backend.service;
 
 import com.musicapp.backend.dto.PagedResponse;
 import com.musicapp.backend.dto.subscription.SubscriptionDto;
-import com.musicapp.backend.entity.Transaction; // <<< ĐÃ THÊM IMPORT
+import com.musicapp.backend.dto.subscription.SubscriptionPlanDto;
+import com.musicapp.backend.entity.Transaction;
 import com.musicapp.backend.entity.User;
 import com.musicapp.backend.entity.UserSubscription;
 import com.musicapp.backend.exception.BadRequestException;
@@ -18,9 +19,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -42,13 +45,13 @@ public class SubscriptionService {
             return;
         }
 
-        Map<String, Object> packageInfo = getPackageInfoByPackageName(transaction.getPackageName());
-        int durationInDays = (int) packageInfo.get("durationDays");
+        // SỬA LỖI Ở ĐÂY: Dùng getPackageName() thay vì getPackageId()
+        SubscriptionPlanDto packageInfo = getPackageInfo(transaction.getPackageName());
 
         UserSubscription subscription = UserSubscription.builder()
                 .user(user)
                 .startDate(LocalDateTime.now())
-                .endDate(LocalDateTime.now().plusDays(durationInDays))
+                .endDate(LocalDateTime.now().plusDays(packageInfo.getDurationDays()))
                 .price(transaction.getAmount())
                 .status(UserSubscription.SubscriptionStatus.ACTIVE)
                 .autoRenewal(false)
@@ -82,46 +85,39 @@ public class SubscriptionService {
         return subscriptionMapper.toDto(updatedSubscription);
     }
 
-    public Map<String, Object> getAvailablePackages() {
-        return Map.of(
-                "monthly_premium", getPackageInfo("monthly_premium"),
-                "yearly_premium", getPackageInfo("yearly_premium")
+    public List<SubscriptionPlanDto> getAvailablePlans() {
+        return Arrays.asList(
+                getPackageInfo("monthly_premium"),
+                getPackageInfo("yearly_premium")
         );
     }
 
-    public Map<String, Object> getPackageInfo(String packageId) {
-        if ("monthly_premium".equals(packageId)) {
-            return Map.of(
-                    "name", "Gói Premium 1 Tháng",
-                    "price", new BigDecimal("49000.00"),
-                    "durationDays", 30,
-                    "features", List.of("Nghe nhạc không quảng cáo", "Chất lượng cao")
-            );
-        } else if ("yearly_premium".equals(packageId)) {
-            return Map.of(
-                    "name", "Gói Premium 1 Năm",
-                    "price", new BigDecimal("499000.00"),
-                    "durationDays", 365,
-                    "features", List.of("Tất cả quyền lợi của gói Tháng", "Tiết kiệm hơn")
-            );
-        } else {
-            throw new BadRequestException("Mã gói không hợp lệ: " + packageId);
+    public SubscriptionPlanDto getPackageInfo(String packageId) {
+        switch (packageId) {
+            case "monthly_premium":
+                return SubscriptionPlanDto.builder()
+                        .id("monthly_premium")
+                        .name("Gói Premium 1 Tháng")
+                        .price(new BigDecimal("49000.00"))
+                        .durationDays(30)
+                        .period("tháng")
+                        .features(List.of("Nghe nhạc không quảng cáo", "Chất lượng âm thanh cao nhất", "Tải nhạc không giới hạn"))
+                        .build();
+            case "yearly_premium":
+                return SubscriptionPlanDto.builder()
+                        .id("yearly_premium")
+                        .name("Gói Premium 1 Năm")
+                        .price(new BigDecimal("499000.00"))
+                        .durationDays(365)
+                        .period("năm")
+                        .features(List.of("Tất cả quyền lợi của gói Tháng", "Tiết kiệm hơn 2 tháng"))
+                        .build();
+            default:
+                throw new BadRequestException("Mã gói không hợp lệ: " + packageId);
         }
     }
 
-    private Map<String, Object> getPackageInfoByPackageName(String packageName) {
-        if ("Gói Premium 1 Tháng".equals(packageName)) {
-            return getPackageInfo("monthly_premium");
-        } else if ("Gói Premium 1 Năm".equals(packageName)) {
-            return getPackageInfo("yearly_premium");
-        } else {
-            throw new BadRequestException("Tên gói không hợp lệ: " + packageName);
-        }
-    }
-
-    // <<< ĐÃ XÓA KHỐI CODE BỊ THỪA GÂY LỖI CÚ PHÁP >>>
-
-    // --- Các phương thức Admin và helper giữ nguyên ---
+    // Các phương thức dành cho Admin
     public PagedResponse<SubscriptionDto> getAllSubscriptions(Pageable pageable, Boolean isActive) {
         Page<UserSubscription> subscriptions;
         if (isActive != null) {
@@ -158,6 +154,7 @@ public class SubscriptionService {
     }
 
     public Object getSubscriptionRevenue(LocalDateTime startDate, LocalDateTime endDate) {
+        // This part needs real implementation with TransactionRepository
         return Map.of(
                 "totalRevenue", "Chưa được triển khai",
                 "period", Map.of("start", startDate, "end", endDate)

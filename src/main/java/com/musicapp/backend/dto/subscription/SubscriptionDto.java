@@ -7,7 +7,6 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Data
 @Builder
@@ -15,7 +14,6 @@ import java.util.List;
 @AllArgsConstructor
 public class SubscriptionDto {
     private Long id;
-    // private String subscriptionType; // XOÁ BỎ
     private LocalDateTime startDate;
     private LocalDateTime endDate;
     private BigDecimal price;
@@ -23,21 +21,11 @@ public class SubscriptionDto {
     private Boolean autoRenewal;
     private LocalDateTime createdAt;
     private LocalDateTime cancelledAt;
-
-    // User info
     private Long userId;
     private String userName;
     private String userEmail;
-
-    // --- CÁC TRƯỜNG GÂY LỖI ĐÃ ĐƯỢC XOÁ BỎ ---
-    // private Integer maxPremiumSongs;
-    // private Boolean unlimitedPremiumSongs;
-
-    // Status indicators
     private Boolean isActive;
-    private Boolean isExpiring; // Within 7 days of expiration
+    private Boolean isExpiring;
     private Long daysRemaining;
-
-    // Transaction history
-    private List<Long> transactionIds;
+    private Long transactionId;
 }

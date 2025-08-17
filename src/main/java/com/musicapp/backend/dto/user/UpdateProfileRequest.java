@@ -24,4 +24,6 @@ public class UpdateProfileRequest {
 
     @Pattern(regexp = "(^$|Male|Female|Other)", message = "Giới tính không hợp lệ.")
     private String gender;
+
+    private boolean removeAvatar;
 }

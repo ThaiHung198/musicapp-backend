@@ -20,16 +20,14 @@ public class PlaylistDto {
     private String thumbnailPath;
     private String visibility;
     private LocalDateTime createdAt;
-
     private Long creatorId;
     private String creatorName;
-
     private List<SongDto> songs;
     private Integer songCount;
-
     private Long likeCount;
     private Long commentCount;
     private Boolean isLikedByCurrentUser;
+    private Long listenCount;
 
     public PlaylistDto(Long id, String name, String thumbnailPath, Playlist.PlaylistVisibility visibility, LocalDateTime createdAt, Long creatorId, Long songCount) {
         this.id = id;
@@ -39,5 +37,9 @@ public class PlaylistDto {
         this.createdAt = createdAt;
         this.creatorId = creatorId;
         this.songCount = songCount.intValue();
+        this.listenCount = 0L;
+        this.likeCount = 0L;
+        this.commentCount = 0L;
+        this.isLikedByCurrentUser = false;
     }
 }

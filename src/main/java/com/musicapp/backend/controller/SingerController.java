@@ -1,11 +1,9 @@
+// File: src/main/java/com/musicapp/backend/controller/SingerController.java
 package com.musicapp.backend.controller;
 
 import com.musicapp.backend.dto.BaseResponse;
 import com.musicapp.backend.dto.PagedResponse;
-import com.musicapp.backend.dto.singer.AdminCreateSingerRequest;
-import com.musicapp.backend.dto.singer.CreateSingerRequest;
-import com.musicapp.backend.dto.singer.SingerDetailDto;
-import com.musicapp.backend.dto.singer.SingerDto;
+import com.musicapp.backend.dto.singer.*;
 import com.musicapp.backend.entity.User;
 import com.musicapp.backend.service.SingerService;
 import jakarta.validation.Valid;
@@ -21,8 +19,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.musicapp.backend.dto.singer.AdminUpdateSingerRequest;
-import org.springframework.web.bind.annotation.RequestPart;
 import com.musicapp.backend.entity.Singer;
 
 import java.util.List;
@@ -33,6 +29,23 @@ import java.util.List;
 public class SingerController {
 
     private final SingerService singerService;
+
+    @GetMapping("/top")
+    @PreAuthorize("permitAll()")
+    public ResponseEntity<BaseResponse<List<SingerDto>>> getTopSingers(
+            @RequestParam(defaultValue = "8") int limit) {
+        List<SingerDto> singers = singerService.getTopSingers(limit);
+        return ResponseEntity.ok(BaseResponse.success(singers));
+    }
+
+    @GetMapping("/search")
+    @PreAuthorize("permitAll()")
+    public ResponseEntity<BaseResponse<Page<SingerDto>>> searchSingers(
+            @RequestParam String keyword,
+            @PageableDefault(size = 10) Pageable pageable) {
+        Page<SingerDto> singers = singerService.searchSingers(keyword, pageable);
+        return ResponseEntity.ok(BaseResponse.success(singers));
+    }
 
     @GetMapping("/admin/all")
     @PreAuthorize("hasRole('ADMIN')")
@@ -55,12 +68,41 @@ public class SingerController {
         return ResponseEntity.ok(BaseResponse.success("Admin created singer successfully", newSinger));
     }
 
-    @GetMapping("/selectable")
-    @PreAuthorize("hasRole('CREATOR')")
-    public ResponseEntity<BaseResponse<List<SingerDto>>> getSelectableSingers(
-            @AuthenticationPrincipal User creator
+    @PostMapping(value = "/admin/batch", consumes = { MediaType.MULTIPART_FORM_DATA_VALUE })
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BaseResponse<List<SingerDto>>> createMultipleSingersByAdmin(
+            @RequestPart("singersRequest") @Valid AdminCreateMultipleSingersRequest request,
+            @RequestPart(value = "avatarFiles", required = false) List<MultipartFile> avatarFiles,
+            @AuthenticationPrincipal User admin
     ) {
-        List<SingerDto> singers = singerService.getSelectableSingersForCreator(creator);
+        List<SingerDto> newSingers = singerService.createMultipleSingersByAdmin(request, avatarFiles, admin);
+        return ResponseEntity.ok(BaseResponse.success("Successfully created " + newSingers.size() + " singers.", newSingers));
+    }
+    // END-CHANGE
+
+    @PutMapping(value = "/admin/{id}", consumes = { MediaType.MULTIPART_FORM_DATA_VALUE })
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BaseResponse<SingerDto>> updateSingerByAdmin(
+            @PathVariable Long id,
+            @RequestPart("singerRequest") @Valid AdminUpdateSingerRequest request,
+            @RequestPart(value = "avatarFile", required = false) MultipartFile avatarFile) {
+        SingerDto updatedSinger = singerService.updateSingerByAdmin(id, request, avatarFile);
+        return ResponseEntity.ok(BaseResponse.success("Cập nhật ca sĩ thành công!", updatedSinger));
+    }
+
+    @DeleteMapping("/admin/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BaseResponse<Void>> deleteSingerByAdmin(@PathVariable Long id) {
+        singerService.deleteSingerByAdmin(id);
+        return ResponseEntity.ok(BaseResponse.success("Đã xóa ca sĩ thành công.", null));
+    }
+
+    @GetMapping("/selectable")
+    @PreAuthorize("hasAnyRole('CREATOR', 'ADMIN')")
+    public ResponseEntity<BaseResponse<List<SingerDto>>> getSelectableSingers(
+            @AuthenticationPrincipal User user
+    ) {
+        List<SingerDto> singers = singerService.getSelectableSingersForCreator(user);
         return ResponseEntity.ok(BaseResponse.success(singers));
     }
 
@@ -91,22 +133,5 @@ public class SingerController {
     public ResponseEntity<BaseResponse<SingerDetailDto>> getSingerById(@PathVariable Long id) {
         SingerDetailDto singer = singerService.getSingerDetailById(id);
         return ResponseEntity.ok(BaseResponse.success(singer));
-    }
-
-    @PutMapping(value = "/{id}", consumes = { MediaType.MULTIPART_FORM_DATA_VALUE })
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<BaseResponse<SingerDto>> updateSinger(
-            @PathVariable Long id,
-            @RequestPart("singerRequest") @Valid AdminUpdateSingerRequest request,
-            @RequestPart(value = "avatarFile", required = false) MultipartFile avatarFile) {
-        SingerDto updatedSinger = singerService.updateSinger(id, request, avatarFile);
-        return ResponseEntity.ok(BaseResponse.success("Cập nhật ca sĩ thành công!", updatedSinger));
-    }
-
-    @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<BaseResponse<Void>> deleteSinger(@PathVariable Long id) {
-        singerService.deleteSinger(id);
-        return ResponseEntity.ok(BaseResponse.success("Singer deleted successfully", null));
     }
 }
