@@ -174,7 +174,7 @@ public class SongService {
     public List<SongDto> getMostLikedSongs(int limit, User currentUser) {
         Pageable pageable = PageRequest.of(0, limit);
 
-        List<Long> mostLikedSongIds = likeRepository.findMostLikedSongIds(pageable);
+        List<Long> mostLikedSongIds = songRepository.findMostLikedAndApprovedSongIds(pageable);
 
         if (mostLikedSongIds.isEmpty()) {
             return Collections.emptyList();
@@ -202,7 +202,6 @@ public class SongService {
                 : null;
 
         Set<Singer> singers = new HashSet<>();
-        // 1. Xử lý ca sĩ đã tồn tại
         if (request.getSingerIds() != null && !request.getSingerIds().isEmpty()) {
             List<Singer> existingSingers = singerRepository.findAllById(request.getSingerIds());
             if (existingSingers.size() != request.getSingerIds().size()) {
@@ -216,7 +215,6 @@ public class SongService {
             });
         }
 
-        // 2. Xử lý ca sĩ mới và ảnh của họ
         if (request.getNewSingers() != null && !request.getNewSingers().isEmpty()) {
             Map<String, MultipartFile> avatarFilesMap = (newSingerAvatars != null)
                     ? newSingerAvatars.stream().collect(Collectors.toMap(MultipartFile::getOriginalFilename, Function.identity(), (first, second) -> first))

@@ -46,11 +46,12 @@ public class SubmissionController {
     public ResponseEntity<PagedResponse<SubmissionDto>> getMySubmissions(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String keyword,
             @RequestParam(required = false) SubmissionStatus status,
             Authentication authentication) {
         String username = authentication.getName();
         Pageable pageable = PageRequest.of(page, size);
-        PagedResponse<SubmissionDto> submissions = submissionService.getSubmissionsByUser(username, status, pageable);
+        PagedResponse<SubmissionDto> submissions = submissionService.getSubmissionsByUser(username, keyword, status, pageable);
         return ResponseEntity.ok(submissions);
     }
 

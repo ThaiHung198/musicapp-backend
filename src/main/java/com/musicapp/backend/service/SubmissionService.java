@@ -143,12 +143,15 @@ public class SubmissionService {
     }
 
     @Transactional(readOnly = true)
-    public PagedResponse<SubmissionDto> getSubmissionsByUser(String username, SongSubmission.SubmissionStatus status, Pageable pageable) {
+    public PagedResponse<SubmissionDto> getSubmissionsByUser(String username, String keyword, SongSubmission.SubmissionStatus status, Pageable pageable) {
         User user = userRepository.findByEmail(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
 
         Page<SongSubmission> submissionsPage;
-        if (status != null) {
+
+        if (StringUtils.hasText(keyword)) {
+            submissionsPage = submissionRepository.findByCreatorIdAndTitleContainingIgnoreCaseOrderBySubmissionDateDesc(user.getId(), keyword, pageable);
+        } else if (status != null) {
             submissionsPage = submissionRepository.findByCreatorIdAndStatusOrderBySubmissionDateDesc(user.getId(), status, pageable);
         } else {
             submissionsPage = submissionRepository.findByCreatorIdOrderBySubmissionDateDesc(user.getId(), pageable);
@@ -160,6 +163,7 @@ public class SubmissionService {
 
         return PagedResponse.of(submissionDtos, submissionsPage);
     }
+
 
     @Transactional(readOnly = true)
     public SubmissionDto getSubmissionById(Long id, String username) {
@@ -185,7 +189,7 @@ public class SubmissionService {
                 .orElseThrow(() -> new ResourceNotFoundException("Submission not found with id: " + id));
 
         if (!submission.getCreator().getId().equals(user.getId())) {
-            throw new UnauthorizedException("You don't have permission to update this submission");
+            throw new UnauthorizedException("You do not have permission to update this submission");
         }
         if (submission.getStatus() != SongSubmission.SubmissionStatus.PENDING) {
             throw new BadRequestException("Can only update submissions that are in PENDING status.");

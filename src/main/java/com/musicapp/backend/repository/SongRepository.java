@@ -46,6 +46,9 @@ public interface SongRepository extends JpaRepository<Song, Long> {
     @Query("SELECT s FROM Song s WHERE s.status = 'APPROVED' ORDER BY s.createdAt DESC")
     List<Song> findRecentlyCreatedSongs(Pageable pageable);
 
+    @Query("SELECT l.likeableId FROM Like l JOIN Song s ON l.likeableId = s.id WHERE l.likeableType = 'SONG' AND s.status = 'APPROVED' GROUP BY l.likeableId ORDER BY COUNT(l.id) DESC")
+    List<Long> findMostLikedAndApprovedSongIds(Pageable pageable);
+
     @Query("SELECT s FROM Song s JOIN s.singers singer WHERE singer.id = :singerId AND s.status = 'APPROVED' ORDER BY s.createdAt DESC")
     Page<Song> findBySingerIdAndApproved(@Param("singerId") Long singerId, Pageable pageable);
 
