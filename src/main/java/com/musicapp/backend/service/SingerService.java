@@ -165,11 +165,11 @@ public class SingerService {
 
     @Transactional(readOnly = true)
     public List<SingerDto> getSelectableSingersForCreator(User creator) {
-        List<Singer> approvedSingers = singerRepository.findByStatusOrderByNameAsc(SingerStatus.APPROVED);
+        List<Singer> ownApprovedSingers = singerRepository.findByCreatorIdAndStatusOrderByNameAsc(creator.getId(), SingerStatus.APPROVED);
 
         List<Singer> ownRejectedSingers = singerRepository.findByCreatorIdAndStatusOrderByNameAsc(creator.getId(), SingerStatus.REJECTED);
 
-        return Stream.concat(approvedSingers.stream(), ownRejectedSingers.stream())
+        return Stream.concat(ownApprovedSingers.stream(), ownRejectedSingers.stream())
                 .distinct()
                 .sorted(Comparator.comparing(Singer::getName))
                 .map(singerMapper::toDto)
