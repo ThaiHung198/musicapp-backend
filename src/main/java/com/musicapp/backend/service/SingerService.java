@@ -27,6 +27,7 @@ import org.springframework.util.StringUtils;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -163,15 +164,15 @@ public class SingerService {
     }
 
     @Transactional(readOnly = true)
-    public List<SingerDto> getSelectableSingersForCreator(User user) {
-        List<Singer> singers;
-        if (hasAdminRole(user)) {
-            singers = singerRepository.findByStatusOrderByNameAsc(SingerStatus.APPROVED);
-        } else {
-            singers = singerRepository.findByCreatorIdAndStatusOrderByNameAsc(user.getId(), SingerStatus.APPROVED);
-        }
-        return singers.stream()
-                .map(singerMapper::toDtoWithoutSongCount)
+    public List<SingerDto> getSelectableSingersForCreator(User creator) {
+        List<Singer> approvedSingers = singerRepository.findByStatusOrderByNameAsc(SingerStatus.APPROVED);
+
+        List<Singer> ownRejectedSingers = singerRepository.findByCreatorIdAndStatusOrderByNameAsc(creator.getId(), SingerStatus.REJECTED);
+
+        return Stream.concat(approvedSingers.stream(), ownRejectedSingers.stream())
+                .distinct()
+                .sorted(Comparator.comparing(Singer::getName))
+                .map(singerMapper::toDto)
                 .collect(Collectors.toList());
     }
 

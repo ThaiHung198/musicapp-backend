@@ -415,9 +415,12 @@ public class SubmissionService {
             submission.setStatus(SongSubmission.SubmissionStatus.REJECTED);
             submission.setRejectionReason(request.getRejectionReason());
 
-            Set<Singer> pendingSingersToCleanup = associatedSingers.stream()
+            associatedSingers.stream()
                     .filter(singer -> singer.getStatus() == Singer.SingerStatus.PENDING)
-                    .collect(Collectors.toSet());
+                    .forEach(singer -> {
+                        singer.setStatus(Singer.SingerStatus.REJECTED);
+                        singerRepository.save(singer);
+                    });
 
             Notification notification = Notification.builder()
                     .recipient(creator)
@@ -429,8 +432,6 @@ public class SubmissionService {
             notificationRepository.save(notification);
 
             SongSubmission updatedSubmission = submissionRepository.save(submission);
-
-            cleanupOrphanedPendingSingers(pendingSingersToCleanup);
 
             return submissionMapper.toDto(updatedSubmission, reviewer);
 
