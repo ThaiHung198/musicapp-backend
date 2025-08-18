@@ -5,6 +5,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity; // THÊM IMPORT NÀY
 import org.springframework.http.converter.HttpMessageNotReadableException; // THÊM IMPORT NÀY
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError; // THÊM IMPORT NÀY
 import org.springframework.web.bind.MethodArgumentNotValidException; // THÊM IMPORT NÀY
@@ -87,6 +88,12 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_REQUEST) // Status 400
     public BaseResponse<Object> handleBadRequestException(BadRequestException ex) {
         return new BaseResponse<>(false, ex.getMessage(), null);
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN) // Status 403
+    public BaseResponse<Object> handleAccessDeniedException(AccessDeniedException ex) {
+        return new BaseResponse<>(false, "Bạn không có quyền truy cập tài nguyên này.", null);
     }
 
     /**
