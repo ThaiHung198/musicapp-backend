@@ -183,6 +183,26 @@ public class SongService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
+    public List<SongDto> getRandomSongs(int limit, User currentUser) {
+        List<Long> allApprovedSongIds = songRepository.findIdsByStatus(Song.SongStatus.APPROVED);
+
+        if (allApprovedSongIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        Collections.shuffle(allApprovedSongIds);
+
+        int sublistSize = Math.min(limit, allApprovedSongIds.size());
+        List<Long> randomSongIds = allApprovedSongIds.subList(0, sublistSize);
+
+        List<Song> randomSongs = songRepository.findAllById(randomSongIds);
+
+        return randomSongs.stream()
+                .map(song -> songMapper.toDto(song, currentUser))
+                .collect(Collectors.toList());
+    }
+
     private String generateRandomHexColor() {
         Random random = new Random();
         int nextInt = random.nextInt(0xffffff + 1);

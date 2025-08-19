@@ -1,7 +1,6 @@
 package com.musicapp.backend.controller;
 
 import com.musicapp.backend.dto.BaseResponse;
-import com.musicapp.backend.dto.ChartSongDto;
 import com.musicapp.backend.dto.PagedResponse;
 import com.musicapp.backend.dto.song.*;
 import com.musicapp.backend.entity.User;
@@ -124,6 +123,14 @@ public class SongController {
             @AuthenticationPrincipal User currentUser) {
         List<SongDto> songs = songService.getMostLikedSongs(limit, currentUser);
         return ResponseEntity.ok(BaseResponse.success(songs));
+    }
+
+    @GetMapping("/random")
+    public ResponseEntity<BaseResponse<List<SongDto>>> getRandomSongs(
+            @RequestParam(defaultValue = "10") int limit,
+            @AuthenticationPrincipal User currentUser) {
+        List<SongDto> songs = songService.getRandomSongs(limit, currentUser);
+        return ResponseEntity.ok(BaseResponse.success("Random songs fetched successfully", songs));
     }
 
     @GetMapping("/singer/{singerId}")

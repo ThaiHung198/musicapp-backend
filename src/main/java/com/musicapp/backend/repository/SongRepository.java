@@ -107,4 +107,7 @@ public interface SongRepository extends JpaRepository<Song, Long> {
     List<Song> findBySingersIdAndStatus(Long singerId, Song.SongStatus status);
 
     long countByTagsContains(Tag tag);
+
+    @Query("SELECT s.id FROM Song s WHERE s.status = :status")
+    List<Long> findIdsByStatus(@Param("status") Song.SongStatus status);
 }
