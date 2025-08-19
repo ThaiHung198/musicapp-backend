@@ -1,11 +1,7 @@
 package com.musicapp.backend.service;
 
 import com.musicapp.backend.dto.PagedResponse;
-import com.musicapp.backend.dto.song.AdminCreateSongRequest;
-import com.musicapp.backend.dto.song.AdminUpdateSongRequest;
-import com.musicapp.backend.dto.song.CreateSongRequest;
-import com.musicapp.backend.dto.song.SongDto;
-import com.musicapp.backend.dto.song.UpdateSongRequest;
+import com.musicapp.backend.dto.song.*;
 import com.musicapp.backend.entity.*;
 import com.musicapp.backend.exception.BadRequestException;
 import com.musicapp.backend.exception.ResourceAlreadyExistsException;
@@ -22,14 +18,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -44,6 +37,7 @@ public class SongService {
     private final FileStorageService fileStorageService;
     private final LikeRepository likeRepository;
     private final PlaylistRepository playlistRepository;
+    private final ListenHistoryRepository listenHistoryRepository;
 
 
     @Transactional(readOnly = true)
@@ -189,6 +183,12 @@ public class SongService {
                 .collect(Collectors.toList());
     }
 
+    private String generateRandomHexColor() {
+        Random random = new Random();
+        int nextInt = random.nextInt(0xffffff + 1);
+        return String.format("#%06x", nextInt);
+    }
+
     @Transactional
     public SongDto createSongByAdmin(AdminCreateSongRequest request, MultipartFile audioFile, MultipartFile thumbnailFile, List<MultipartFile> newSingerAvatars, User admin) {
         if ((request.getSingerIds() == null || request.getSingerIds().isEmpty()) &&
@@ -247,9 +247,21 @@ public class SongService {
             tags.addAll(tagRepository.findAllById(request.getTagIds()));
         }
 
+        if (request.getNewTags() != null && !request.getNewTags().isEmpty()) {
+            for (String tagName : request.getNewTags()) {
+                Tag newTag = tagRepository.findByName(tagName).orElseGet(() -> {
+                    Tag tag = new Tag();
+                    tag.setName(tagName);
+                    return tagRepository.save(tag);
+                });
+                tags.add(newTag);
+            }
+        }
+
         Song song = Song.builder()
                 .title(request.getTitle())
                 .description(request.getDescription())
+                .lyrics(request.getLyrics())
                 .filePath(audioFilePath)
                 .thumbnailPath(thumbnailFilePath)
                 .creator(admin)
@@ -257,6 +269,7 @@ public class SongService {
                 .tags(tags)
                 .isPremium(request.isPremium())
                 .status(Song.SongStatus.APPROVED)
+                .color(generateRandomHexColor())
                 .build();
 
         Song savedSong = songRepository.save(song);
@@ -271,6 +284,7 @@ public class SongService {
 
         if (request.getTitle() != null) song.setTitle(request.getTitle());
         if (request.getDescription() != null) song.setDescription(request.getDescription());
+        if (request.getLyrics() != null) song.setLyrics(request.getLyrics());
         if (request.getIsPremium() != null) song.setIsPremium(request.getIsPremium());
 
         if (audioFile != null && !audioFile.isEmpty()) {
@@ -280,6 +294,7 @@ public class SongService {
         if (thumbnailFile != null && !thumbnailFile.isEmpty()) {
             String thumbnailFilePath = fileStorageService.storeFile(thumbnailFile, "images/songs");
             song.setThumbnailPath(thumbnailFilePath);
+            song.setColor(generateRandomHexColor());
         }
 
         if (request.getSingerIds() != null) {
@@ -329,6 +344,7 @@ public class SongService {
                 .tags(tags)
                 .isPremium(request.getIsPremium())
                 .status(Song.SongStatus.PENDING)
+                .color(generateRandomHexColor())
                 .build();
 
         Song savedSong = songRepository.save(song);
@@ -416,7 +432,14 @@ public class SongService {
 
     @Transactional
     public void incrementListenCount(Long id) {
+        Song song = songRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Song not found with id: " + id));
+
         songRepository.incrementListenCount(id);
+
+        ListenHistory history = new ListenHistory();
+        history.setSong(song);
+        listenHistoryRepository.save(history);
     }
 
     @Transactional(readOnly = true)
@@ -487,5 +510,37 @@ public class SongService {
         Page<SongDto> dtoPage = songPage.map(song -> songMapper.toDto(song, creator));
 
         return PagedResponse.of(dtoPage.getContent(), dtoPage);
+    }
+
+    @Transactional(readOnly = true)
+    public List<LyricLineDto> getParsedLyrics(Long songId) {
+        Song song = songRepository.findById(songId)
+                .orElseThrow(() -> new ResourceNotFoundException("Song not found with id: " + songId));
+
+        String lrcText = song.getLyrics();
+        if (lrcText == null || lrcText.trim().isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<LyricLineDto> lyricLines = new ArrayList<>();
+        Pattern pattern = Pattern.compile("\\[(\\d{2}):(\\d{2})[.:](\\d{2,3})\\](.*)");
+
+        for (String line : lrcText.split("\n")) {
+            Matcher matcher = pattern.matcher(line.trim());
+            if (matcher.matches()) {
+                double minutes = Double.parseDouble(matcher.group(1));
+                double seconds = Double.parseDouble(matcher.group(2));
+                String millisStr = matcher.group(3);
+                double millis = Double.parseDouble(millisStr);
+
+                double totalTime = minutes * 60 + seconds + (millisStr.length() == 2 ? millis / 100.0 : millis / 1000.0);
+                String text = matcher.group(4).trim();
+
+                if (!text.isEmpty()) {
+                    lyricLines.add(new LyricLineDto(totalTime, text));
+                }
+            }
+        }
+        return lyricLines;
     }
 }

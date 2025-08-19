@@ -11,4 +11,5 @@ public class AdminUpdateSongRequest {
     private List<Long> singerIds;
     private List<Long> tagIds;
     private Boolean isPremium;
+    private String lyrics;
 }

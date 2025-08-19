@@ -35,4 +35,6 @@ public interface TagRepository extends JpaRepository<Tag, Long> {
     Page<Object[]> findByNameContainingWithSongCount(@Param("keyword") String keyword, Pageable pageable);
 
     List<Tag> findByNameIn(List<String> names);
+
+    Optional<Tag> findByName(String name);
 }
