@@ -59,6 +59,7 @@ public class SubmissionService {
         SongSubmission submission = SongSubmission.builder()
                 .title(request.getTitle())
                 .description(request.getDescription())
+                .lyrics(request.getLyrics())
                 .filePath(audioFilePath)
                 .thumbnailPath(thumbnailFilePath)
                 .isPremium(request.getIsPremium())
@@ -210,6 +211,7 @@ public class SubmissionService {
 
         submission.setTitle(request.getTitle());
         submission.setDescription(request.getDescription());
+        submission.setLyrics(request.getLyrics());
         submission.setIsPremium(request.getIsPremium());
 
         Set<Singer> oldSingers = submission.getSubmissionSingers().stream()
@@ -382,6 +384,7 @@ public class SubmissionService {
             Song approvedSong = Song.builder()
                     .title(submission.getTitle())
                     .description(submission.getDescription())
+                    .lyrics(submission.getLyrics())
                     .filePath(submission.getFilePath())
                     .thumbnailPath(submission.getThumbnailPath())
                     .isPremium(submission.getIsPremium())

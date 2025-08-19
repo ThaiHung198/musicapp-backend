@@ -39,6 +39,7 @@ public class SongMapper {
                 .id(song.getId())
                 .title(song.getTitle())
                 .description(song.getDescription())
+                .lyrics(song.getLyrics())
                 .filePath(song.getFilePath())
                 .thumbnailPath(song.getThumbnailPath())
                 .listenCount(song.getListenCount())
