@@ -45,7 +45,7 @@ public class SubmissionService {
     @Transactional
     public SubmissionDto createSubmission(CreateSubmissionRequest request, MultipartFile audioFile, MultipartFile thumbnailFile, List<MultipartFile> newSingerAvatars, String username) {
         User creator = userRepository.findByEmail(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng với email: " + username));
 
         String audioFilePath = fileStorageService.storeFile(audioFile, "audio");
         String thumbnailFilePath = (thumbnailFile != null && !thumbnailFile.isEmpty())
@@ -53,7 +53,7 @@ public class SubmissionService {
                 : null;
 
         if (CollectionUtils.isEmpty(request.getExistingSingerIds()) && CollectionUtils.isEmpty(request.getNewSingers())) {
-            throw new BadRequestException("At least one existing or new singer is required.");
+            throw new BadRequestException("Cần có ít nhất một ca sĩ đã tồn tại hoặc ca sĩ mới.");
         }
 
         SongSubmission submission = SongSubmission.builder()
@@ -96,7 +96,7 @@ public class SubmissionService {
 
             for (NewSingerInfo newSingerInfo : request.getNewSingers()) {
                 if (singerRepository.existsByEmail(newSingerInfo.getEmail())) {
-                    throw new ResourceAlreadyExistsException("A singer with email '" + newSingerInfo.getEmail() + "' already exists.");
+                    throw new ResourceAlreadyExistsException("Một ca sĩ với email '" + newSingerInfo.getEmail() + "' đã tồn tại.");
                 }
 
                 String avatarPath = null;
@@ -129,7 +129,7 @@ public class SubmissionService {
                         singer.getCreator().getId().equals(creator.getId());
 
                 if (!(isApproved || isOwnPending || isOwnRejected)) {
-                    throw new UnauthorizedException("You do not have permission to use the singer: " + singer.getName());
+                    throw new UnauthorizedException("Bạn không có quyền sử dụng ca sĩ: " + singer.getName());
                 }
 
                 if (isOwnRejected) {
@@ -145,7 +145,7 @@ public class SubmissionService {
     @Transactional(readOnly = true)
     public PagedResponse<SubmissionDto> getSubmissionsByUser(String username, String keyword, SongSubmission.SubmissionStatus status, Pageable pageable) {
         User user = userRepository.findByEmail(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng với email: " + username));
 
         Page<SongSubmission> submissionsPage;
 
@@ -168,13 +168,13 @@ public class SubmissionService {
     @Transactional(readOnly = true)
     public SubmissionDto getSubmissionById(Long id, String username) {
         User user = userRepository.findByEmail(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng với email: " + username));
 
         SongSubmission submission = submissionRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Submission not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy yêu cầu với ID: " + id));
 
         if (!submission.getCreator().getId().equals(user.getId()) && !user.getRoles().stream().anyMatch(role -> role.getName().equals("ROLE_ADMIN"))) {
-            throw new UnauthorizedException("You don't have permission to access this submission");
+            throw new UnauthorizedException("Bạn không có quyền truy cập vào yêu cầu này.");
         }
 
         return submissionMapper.toDto(submission, user);
@@ -183,16 +183,16 @@ public class SubmissionService {
     @Transactional
     public SubmissionDto updateSubmission(Long id, CreateSubmissionRequest request, MultipartFile audioFile, MultipartFile thumbnailFile, String username) {
         User user = userRepository.findByEmail(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng với email: " + username));
 
         SongSubmission submission = submissionRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Submission not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy yêu cầu với ID: " + id));
 
         if (!submission.getCreator().getId().equals(user.getId())) {
-            throw new UnauthorizedException("You do not have permission to update this submission");
+            throw new UnauthorizedException("Bạn không có quyền cập nhật yêu cầu này.");
         }
         if (submission.getStatus() != SongSubmission.SubmissionStatus.PENDING) {
-            throw new BadRequestException("Can only update submissions that are in PENDING status.");
+            throw new BadRequestException("Chỉ có thể cập nhật các yêu cầu đang ở trạng thái PENDING (Chờ duyệt).");
         }
 
         if (audioFile != null && !audioFile.isEmpty()) {
@@ -250,20 +250,19 @@ public class SubmissionService {
                 Singer singerToProcess;
                 if (singerInfo.getId() != null) {
                     singerToProcess = singerRepository.findById(singerInfo.getId())
-                            .orElseThrow(() -> new ResourceNotFoundException("Pending singer with id " + singerInfo.getId() + " not found."));
+                            .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy ca sĩ đang chờ duyệt với ID " + singerInfo.getId() + "."));
                     if (singerToProcess.getStatus() != SingerStatus.PENDING || singerToProcess.getCreator() == null || !singerToProcess.getCreator().getId().equals(user.getId())) {
-                        throw new UnauthorizedException("You do not have permission to modify singer with id " + singerInfo.getId());
+                        throw new UnauthorizedException("Bạn không có quyền chỉnh sửa ca sĩ với ID " + singerInfo.getId());
                     }
-                    singerRepository.findByEmail(singerInfo.getEmail()).ifPresent(otherSinger -> {
-                        if (!otherSinger.getId().equals(singerInfo.getId())) {
-                            throw new ResourceAlreadyExistsException("Email '" + singerInfo.getEmail() + "' is already used by another singer.");
-                        }
-                    });
+                    Optional<Singer> singerWithSameEmail = singerRepository.findByEmail(singerInfo.getEmail());
+                    if (singerWithSameEmail.isPresent() && !singerWithSameEmail.get().getId().equals(singerInfo.getId())) {
+                        throw new ResourceAlreadyExistsException("Email '" + singerInfo.getEmail() + "' đã được sử dụng bởi một ca sĩ khác.");
+                    }
                     singerToProcess.setName(singerInfo.getName());
                     singerToProcess.setEmail(singerInfo.getEmail());
                 } else {
                     if (singerRepository.existsByEmail(singerInfo.getEmail())) {
-                        throw new ResourceAlreadyExistsException("A singer with email '" + singerInfo.getEmail() + "' already exists.");
+                        throw new ResourceAlreadyExistsException("Một ca sĩ với email '" + singerInfo.getEmail() + "' đã tồn tại.");
                     }
                     singerToProcess = Singer.builder()
                             .name(singerInfo.getName())
@@ -282,7 +281,7 @@ public class SubmissionService {
                 boolean isApproved = singer.getStatus() == Singer.SingerStatus.APPROVED;
                 boolean isOwn = singer.getCreator() != null && singer.getCreator().getId().equals(user.getId());
                 if (!(isApproved || isOwn)) {
-                    throw new UnauthorizedException("You do not have permission to use the singer: " + singer.getName());
+                    throw new UnauthorizedException("Bạn không có quyền sử dụng ca sĩ: " + singer.getName());
                 }
             }
             allSingersForSubmission.addAll(existingSingers);
@@ -293,16 +292,16 @@ public class SubmissionService {
     @Transactional
     public void deleteSubmission(Long id, String username) {
         User creator = userRepository.findByEmail(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng với email: " + username));
 
         SongSubmission submission = submissionRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Submission not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy yêu cầu với ID: " + id));
 
         if (!submission.getCreator().getId().equals(creator.getId())) {
-            throw new UnauthorizedException("You do not have permission to withdraw this submission.");
+            throw new UnauthorizedException("Bạn không có quyền rút lại yêu cầu này.");
         }
         if (submission.getStatus() != SongSubmission.SubmissionStatus.PENDING) {
-            throw new BadRequestException("You can only withdraw submissions that are in PENDING status.");
+            throw new BadRequestException("Bạn chỉ có thể rút lại các yêu cầu đang ở trạng thái PENDING (Chờ duyệt).");
         }
 
         Set<Singer> associatedSingers = submission.getSubmissionSingers().stream()
@@ -354,13 +353,13 @@ public class SubmissionService {
     @Transactional
     public SubmissionDto reviewSubmission(Long id, ReviewSubmissionRequest request, String reviewerUsername) {
         User reviewer = userRepository.findByEmail(reviewerUsername)
-                .orElseThrow(() -> new ResourceNotFoundException("Reviewer not found with email: " + reviewerUsername));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người duyệt với email: " + reviewerUsername));
 
         SongSubmission submission = submissionRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Submission not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy yêu cầu với ID: " + id));
 
         if (submission.getStatus() != SongSubmission.SubmissionStatus.PENDING) {
-            throw new BadRequestException("Can only review pending submissions");
+            throw new BadRequestException("Chỉ có thể duyệt các yêu cầu đang chờ xử lý.");
         }
 
         submission.setReviewer(reviewer);
@@ -436,7 +435,7 @@ public class SubmissionService {
             return submissionMapper.toDto(updatedSubmission, reviewer);
 
         } else {
-            throw new BadRequestException("Invalid review action. Must be APPROVE or REJECT");
+            throw new BadRequestException("Hành động duyệt không hợp lệ. Phải là APPROVE (Duyệt) hoặc REJECT (Từ chối).");
         }
 
         SongSubmission updatedSubmission = submissionRepository.save(submission);
@@ -463,7 +462,7 @@ public class SubmissionService {
     @Transactional(readOnly = true)
     public Object getUserSubmissionStats(String username) {
         User user = userRepository.findByEmail(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + username));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng với email: " + username));
 
         return Map.of(
                 "totalSubmissions", submissionRepository.countByCreatorId(user.getId()),
@@ -488,7 +487,7 @@ public class SubmissionService {
         List<User> admins = userRepository.findByRoleNameAndKeyword("ROLE_ADMIN", "", Pageable.unpaged()).getContent();
 
         if (admins.isEmpty()) {
-            System.out.println("Warning: No admins found to notify for new submission ID: " + submission.getId());
+            System.out.println("Cảnh báo: Không tìm thấy quản trị viên nào để thông báo cho yêu cầu mới có ID: " + submission.getId());
             return;
         }
 
