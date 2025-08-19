@@ -23,6 +23,7 @@ public class SongDto {
     private Long listenCount;
     private String status;
     private LocalDateTime createdAt;
+    private String color;
 
     // Premium features
     private Boolean isPremium;
