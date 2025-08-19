@@ -51,7 +51,6 @@ public class SecurityConfiguration {
 
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // Bất kỳ request nào khác (POST, PUT, DELETE, etc.) đều cần xác thực
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
