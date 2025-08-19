@@ -36,9 +36,10 @@ public class TagController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BaseResponse<PagedResponse<TagAdminViewDto>>> getAllTagsForAdmin(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "5") int size) {
+            @RequestParam(defaultValue = "5") int size,
+            @RequestParam(required = false) String search) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("name").ascending());
-        PagedResponse<TagAdminViewDto> pagedTags = tagService.getAllTagsForAdmin(pageable);
+        PagedResponse<TagAdminViewDto> pagedTags = tagService.getAllTagsForAdmin(search, pageable);
         return ResponseEntity.ok(BaseResponse.success(pagedTags));
     }
 
