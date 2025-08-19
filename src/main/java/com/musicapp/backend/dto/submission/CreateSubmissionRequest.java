@@ -21,6 +21,8 @@ public class CreateSubmissionRequest {
 
     private String description;
 
+    private String lyrics;
+
     @Builder.Default
     private Boolean isPremium = false;
 
