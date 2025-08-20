@@ -278,9 +278,14 @@ public class SongService {
             }
         }
 
+        String description = request.getDescription();
+        if (!StringUtils.hasText(description)) {
+            description = "Bài hát này không có mô tả";
+        }
+
         Song song = Song.builder()
                 .title(request.getTitle())
-                .description(request.getDescription())
+                .description(description)
                 .lyrics(request.getLyrics())
                 .filePath(audioFilePath)
                 .thumbnailPath(thumbnailFilePath)
@@ -303,7 +308,15 @@ public class SongService {
                 .orElseThrow(() -> new ResourceNotFoundException("Song not found with id: " + songId));
 
         if (request.getTitle() != null) song.setTitle(request.getTitle());
-        if (request.getDescription() != null) song.setDescription(request.getDescription());
+
+        if (request.getDescription() != null) {
+            if (StringUtils.hasText(request.getDescription())) {
+                song.setDescription(request.getDescription());
+            } else {
+                song.setDescription("Bài hát này không có mô tả");
+            }
+        }
+
         if (request.getLyrics() != null) song.setLyrics(request.getLyrics());
         if (request.getIsPremium() != null) song.setIsPremium(request.getIsPremium());
 

@@ -56,10 +56,16 @@ public class SubmissionService {
             throw new BadRequestException("At least one existing or new singer is required.");
         }
 
+        String description = request.getDescription();
+        if (!StringUtils.hasText(description)) {
+            description = "Bài hát này không có mô tả";
+        }
+
         SongSubmission submission = SongSubmission.builder()
                 .title(request.getTitle())
                 .description(request.getDescription())
                 .lyrics(request.getLyrics())
+
                 .filePath(audioFilePath)
                 .thumbnailPath(thumbnailFilePath)
                 .isPremium(request.getIsPremium())
@@ -210,8 +216,14 @@ public class SubmissionService {
         }
 
         submission.setTitle(request.getTitle());
-        submission.setDescription(request.getDescription());
+        String description = request.getDescription();
+        if (!StringUtils.hasText(description)) {
+            submission.setDescription("Bài hát này không có mô tả");
+        } else {
+            submission.setDescription(description);
+        }
         submission.setLyrics(request.getLyrics());
+
         submission.setIsPremium(request.getIsPremium());
 
         Set<Singer> oldSingers = submission.getSubmissionSingers().stream()
