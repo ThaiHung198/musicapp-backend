@@ -63,7 +63,9 @@ public class SubmissionService {
 
         SongSubmission submission = SongSubmission.builder()
                 .title(request.getTitle())
-                .description(description)
+                .description(request.getDescription())
+                .lyrics(request.getLyrics())
+
                 .filePath(audioFilePath)
                 .thumbnailPath(thumbnailFilePath)
                 .isPremium(request.getIsPremium())
@@ -214,13 +216,13 @@ public class SubmissionService {
         }
 
         submission.setTitle(request.getTitle());
-
         String description = request.getDescription();
         if (!StringUtils.hasText(description)) {
             submission.setDescription("Bài hát này không có mô tả");
         } else {
             submission.setDescription(description);
         }
+        submission.setLyrics(request.getLyrics());
 
         submission.setIsPremium(request.getIsPremium());
 
@@ -394,6 +396,7 @@ public class SubmissionService {
             Song approvedSong = Song.builder()
                     .title(submission.getTitle())
                     .description(submission.getDescription())
+                    .lyrics(submission.getLyrics())
                     .filePath(submission.getFilePath())
                     .thumbnailPath(submission.getThumbnailPath())
                     .isPremium(submission.getIsPremium())

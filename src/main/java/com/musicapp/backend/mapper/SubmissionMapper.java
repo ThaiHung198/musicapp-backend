@@ -35,6 +35,7 @@ public class SubmissionMapper {
                 .id(submission.getId())
                 .title(submission.getTitle())
                 .description(submission.getDescription())
+                .lyrics(submission.getLyrics())
                 .filePath(submission.getFilePath())
                 .thumbnailPath(submission.getThumbnailPath())
                 .isPremium(submission.getIsPremium())
