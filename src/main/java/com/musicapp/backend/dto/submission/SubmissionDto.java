@@ -19,6 +19,7 @@ public class SubmissionDto {
     private Long id;
     private String title;
     private String description;
+    private String lyrics;
     private String filePath;
     private String thumbnailPath;
     private Boolean isPremium;

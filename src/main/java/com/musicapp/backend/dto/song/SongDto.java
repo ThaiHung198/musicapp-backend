@@ -18,11 +18,13 @@ public class SongDto {
     private Long id;
     private String title;
     private String description;
+    private String lyrics;
     private String filePath;
     private String thumbnailPath;
     private Long listenCount;
     private String status;
     private LocalDateTime createdAt;
+    private String color;
 
     // Premium features
     private Boolean isPremium;

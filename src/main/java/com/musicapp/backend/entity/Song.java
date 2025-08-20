@@ -31,6 +31,10 @@ public class Song {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Lob
+    @Column(columnDefinition = "TEXT")
+    private String lyrics;
+
     @Column(name = "file_path", nullable = false)
     private String filePath;
 
@@ -53,6 +57,9 @@ public class Song {
     @Column(name = "created_at")
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    @Column(name = "color")
+    private String color;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)

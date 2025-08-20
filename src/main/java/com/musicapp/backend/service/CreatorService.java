@@ -28,6 +28,7 @@ public class CreatorService {
         // 1. Lấy danh sách các yêu cầu đã gửi (submissions)
         PagedResponse<SubmissionDto> submissions = submissionService.getSubmissionsByUser(
                 username,
+                null, // Thêm tham số keyword còn thiếu
                 submissionStatus,
                 submissionPageable
         );

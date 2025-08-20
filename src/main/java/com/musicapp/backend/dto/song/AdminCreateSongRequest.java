@@ -1,4 +1,3 @@
-// File: src/main/java/com/musicapp/backend/dto/song/AdminCreateSongRequest.java
 package com.musicapp.backend.dto.song;
 
 import jakarta.validation.Valid;
@@ -15,12 +14,16 @@ public class AdminCreateSongRequest {
 
     private String description;
 
+    private String lyrics;
+
     private List<Long> singerIds;
 
     @Valid
     private List<NewSingerInfo> newSingers;
 
     private List<Long> tagIds;
+
+    private List<String> newTags;
 
     private boolean isPremium = false;
 

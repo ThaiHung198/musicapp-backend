@@ -15,60 +15,51 @@ import java.util.Optional;
 
 @Repository
 public interface SongSubmissionRepository extends JpaRepository<SongSubmission, Long> {
-    
-    // Find by creator
+
     Page<SongSubmission> findByCreatorIdOrderBySubmissionDateDesc(Long creatorId, Pageable pageable);
-    
-    // Find by status
+
     Page<SongSubmission> findByStatusOrderBySubmissionDateDesc(SongSubmission.SubmissionStatus status, Pageable pageable);
-    
-    // Find pending submissions for admin review
+
     @Query("SELECT s FROM SongSubmission s WHERE s.status = 'PENDING' ORDER BY s.submissionDate ASC")
     Page<SongSubmission> findPendingSubmissions(Pageable pageable);
-    
-    // Find by creator and status
+
     Page<SongSubmission> findByCreatorIdAndStatusOrderBySubmissionDateDesc(
             Long creatorId, SongSubmission.SubmissionStatus status, Pageable pageable);
-    
-    // Search submissions by title
+
+    @Query("SELECT s FROM SongSubmission s WHERE s.creator.id = :creatorId AND LOWER(s.title) LIKE LOWER(CONCAT('%', :keyword, '%')) ORDER BY s.submissionDate DESC")
+    Page<SongSubmission> findByCreatorIdAndTitleContainingIgnoreCaseOrderBySubmissionDateDesc(@Param("creatorId") Long creatorId, @Param("keyword") String keyword, Pageable pageable);
+
     @Query("SELECT s FROM SongSubmission s WHERE LOWER(s.title) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
-           "AND s.status = :status ORDER BY s.submissionDate DESC")
-    Page<SongSubmission> searchByTitleAndStatus(@Param("keyword") String keyword, 
-                                                @Param("status") SongSubmission.SubmissionStatus status, 
+            "AND s.status = :status ORDER BY s.submissionDate DESC")
+    Page<SongSubmission> searchByTitleAndStatus(@Param("keyword") String keyword,
+                                                @Param("status") SongSubmission.SubmissionStatus status,
                                                 Pageable pageable);
-    
-    // Count submissions by status
+
     long countByStatus(SongSubmission.SubmissionStatus status);
-    
-    // Count submissions by creator
+
     long countByCreatorId(Long creatorId);
-    
-    // Count submissions by creator and status
+
     long countByCreatorIdAndStatus(Long creatorId, SongSubmission.SubmissionStatus status);
-    
-    // Premium submissions
+
     @Query("SELECT s FROM SongSubmission s WHERE s.isPremium = true AND s.status = :status ORDER BY s.submissionDate DESC")
     Page<SongSubmission> findPremiumSubmissions(@Param("status") SongSubmission.SubmissionStatus status, Pageable pageable);
-    
-    // Submissions within date range
+
     @Query("SELECT s FROM SongSubmission s WHERE s.submissionDate BETWEEN :startDate AND :endDate ORDER BY s.submissionDate DESC")
-    Page<SongSubmission> findBySubmissionDateBetween(@Param("startDate") LocalDateTime startDate, 
-                                                     @Param("endDate") LocalDateTime endDate, 
+    Page<SongSubmission> findBySubmissionDateBetween(@Param("startDate") LocalDateTime startDate,
+                                                     @Param("endDate") LocalDateTime endDate,
                                                      Pageable pageable);
-    
-    // Recent submissions for dashboard
+
     @Query("SELECT s FROM SongSubmission s ORDER BY s.submissionDate DESC")
     List<SongSubmission> findRecentSubmissions(Pageable pageable);
-    
-    // Find submissions reviewed by admin
+
     Page<SongSubmission> findByReviewerIdOrderByReviewDateDesc(Long reviewerId, Pageable pageable);
 
     @Query("SELECT DISTINCT s FROM SongSubmission s " +
             "JOIN FETCH s.creator " +
-            "LEFT JOIN FETCH s.submissionSingers ss " + // Đặt bí danh 'ss' cho submissionSingers
-            "LEFT JOIN FETCH ss.singer " +              // TẢI LUÔN 'singer' từ 'ss'
-            "LEFT JOIN FETCH s.submissionTags st " +    // Đặt bí danh 'st' cho submissionTags
-            "LEFT JOIN FETCH st.tag " +                 // TẢI LUÔN 'tag' từ 'st'
+            "LEFT JOIN FETCH s.submissionSingers ss " +
+            "LEFT JOIN FETCH ss.singer " +
+            "LEFT JOIN FETCH s.submissionTags st " +
+            "LEFT JOIN FETCH st.tag " +
             "WHERE s.id = :id")
     Optional<SongSubmission> findByIdWithAllRelations(@Param("id") Long id);
 }

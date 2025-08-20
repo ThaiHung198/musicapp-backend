@@ -37,31 +37,20 @@ public class SecurityConfiguration {
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authorize -> authorize
 
-                        // Các endpoint công khai, không cần xác thực
+                        // Các endpoint công khai hoàn toàn, không cần xác thực cho bất kỳ method nào
                         .requestMatchers(
-
-                                "/uploads/**",                     // Truy cập file tĩnh
-                                "/api/v1/auth/**",                 // Đăng ký, đăng nhập
-                                "/v3/api-docs/**",                 // Swagger UI
-                                "/swagger-ui/**",                  // Swagger UI
-                                "/api/v1/transactions/momo-ipn", // MoMo IPN Callback
-                                "/api/v1/transactions/vnpay-payment-result" // Endpoint của VNPay
-
+                                "/uploads/**",
+                                "/api/v1/auth/**",
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/api/v1/transactions/momo-ipn",
+                                "/api/v1/transactions/vnpay-payment-result"
                         ).permitAll()
-                        // Cho phép preflight request của CORS
+
+                        .requestMatchers(HttpMethod.GET).permitAll()
+
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // == PHẦN 2: CÁC ENDPOINT CÔNG KHAI CHỈ DÀNH CHO METHOD GET ==
-                        // Cho phép người dùng chưa đăng nhập có thể xem thông tin
-                        .requestMatchers(HttpMethod.GET,
-                                "/api/v1/songs/**",          // Xem danh sách và chi tiết bài hát
-                                "/api/v1/playlists/**",      // Xem danh sách và chi tiết playlist công khai
-                                "/api/v1/singers/**",        // Xem danh sách và chi tiết ca sĩ
-                                "/api/v1/tags/**",           // Xem danh sách và chi tiết thẻ
-                                "/api/v1/likes/*/*/count"    // Xem số lượt like của cả bài hát và playlist
-                        ).permitAll()
-
-                        // == PHẦN 3: CÁC ENDPOINT CÒN LẠI YÊU CẦU XÁC THỰC ==
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

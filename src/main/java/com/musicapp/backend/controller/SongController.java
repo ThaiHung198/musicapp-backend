@@ -2,11 +2,7 @@ package com.musicapp.backend.controller;
 
 import com.musicapp.backend.dto.BaseResponse;
 import com.musicapp.backend.dto.PagedResponse;
-import com.musicapp.backend.dto.song.AdminCreateSongRequest;
-import com.musicapp.backend.dto.song.AdminUpdateSongRequest;
-import com.musicapp.backend.dto.song.CreateSongRequest;
-import com.musicapp.backend.dto.song.SongDto;
-import com.musicapp.backend.dto.song.UpdateSongRequest;
+import com.musicapp.backend.dto.song.*;
 import com.musicapp.backend.entity.User;
 import com.musicapp.backend.service.SongService;
 import jakarta.validation.Valid;
@@ -127,6 +123,14 @@ public class SongController {
             @AuthenticationPrincipal User currentUser) {
         List<SongDto> songs = songService.getMostLikedSongs(limit, currentUser);
         return ResponseEntity.ok(BaseResponse.success(songs));
+    }
+
+    @GetMapping("/random")
+    public ResponseEntity<BaseResponse<List<SongDto>>> getRandomSongs(
+            @RequestParam(defaultValue = "10") int limit,
+            @AuthenticationPrincipal User currentUser) {
+        List<SongDto> songs = songService.getRandomSongs(limit, currentUser);
+        return ResponseEntity.ok(BaseResponse.success("Random songs fetched successfully", songs));
     }
 
     @GetMapping("/singer/{singerId}")
@@ -254,4 +258,11 @@ public class SongController {
         PagedResponse<SongDto> response = songService.getMyLibrary(username, name, pageable);
         return ResponseEntity.ok(BaseResponse.success(response));
     }
+
+    @GetMapping("/{songId}/lyrics")
+    public ResponseEntity<BaseResponse<List<LyricLineDto>>> getSongLyrics(@PathVariable Long songId) {
+        List<LyricLineDto> lyrics = songService.getParsedLyrics(songId);
+        return ResponseEntity.ok(new BaseResponse<>(true, "Lyrics fetched successfully", lyrics));
+    }
+
 }

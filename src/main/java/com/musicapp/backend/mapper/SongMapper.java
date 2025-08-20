@@ -9,7 +9,7 @@ import com.musicapp.backend.repository.SongCommentRepository;
 import com.musicapp.backend.service.SubscriptionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional; // Import thêm
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.stream.Collectors;
 
@@ -23,9 +23,7 @@ public class SongMapper {
     private final SongCommentRepository songCommentRepository;
     private final SubscriptionService subscriptionService;
 
-    // START-FIX: Thêm @Transactional(readOnly = true) để đảm bảo có thể load lazy entity
     @Transactional(readOnly = true)
-    // END-FIX
     public SongDto toDto(Song song, User currentUser) {
         if (song == null) return null;
 
@@ -41,11 +39,13 @@ public class SongMapper {
                 .id(song.getId())
                 .title(song.getTitle())
                 .description(song.getDescription())
+                .lyrics(song.getLyrics())
                 .filePath(song.getFilePath())
                 .thumbnailPath(song.getThumbnailPath())
                 .listenCount(song.getListenCount())
                 .status(song.getStatus().name())
                 .createdAt(song.getCreatedAt())
+                .color(song.getColor())
                 .creatorId(creatorId)
                 .creatorName(creatorName)
                 .isPremium(song.getIsPremium())
@@ -82,6 +82,7 @@ public class SongMapper {
                 .listenCount(song.getListenCount())
                 .status(song.getStatus().name())
                 .createdAt(song.getCreatedAt())
+                .color(song.getColor())
                 .creatorId(creatorId)
                 .creatorName(creatorName)
                 .build();

@@ -32,6 +32,10 @@ public class SongSubmission {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Lob
+    @Column(columnDefinition = "TEXT")
+    private String lyrics;
+
     @Column(name = "file_path", nullable = false)
     private String filePath;
 
@@ -66,12 +70,12 @@ public class SongSubmission {
     private User reviewer; // Admin who reviewed
 
     @OneToMany(mappedBy = "submission", cascade = CascadeType.ALL, orphanRemoval = true)
-    @Builder.Default // <<< THÊM ANNOTATION NÀY
-    private Set<SubmissionSingers> submissionSingers = new HashSet<>(); // <<< THÊM KHỞI TẠO
+    @Builder.Default
+    private Set<SubmissionSingers> submissionSingers = new HashSet<>();
 
     @OneToMany(mappedBy = "submission", cascade = CascadeType.ALL, orphanRemoval = true)
-    @Builder.Default // <<< THÊM ANNOTATION NÀY
-    private Set<SubmissionTags> submissionTags = new HashSet<>(); // <<< THÊM KHỞI TẠO
+    @Builder.Default
+    private Set<SubmissionTags> submissionTags = new HashSet<>();
 
     // After approval, this submission becomes a Song
     @OneToOne(mappedBy = "submission", cascade = CascadeType.ALL)

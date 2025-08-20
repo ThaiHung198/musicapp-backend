@@ -19,6 +19,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -43,8 +44,15 @@ public class TagService {
     }
 
     @Transactional(readOnly = true)
-    public PagedResponse<TagAdminViewDto> getAllTagsForAdmin(Pageable pageable) {
-        Page<Object[]> pageResult = tagRepository.findAllWithSongCount(pageable);
+    public PagedResponse<TagAdminViewDto> getAllTagsForAdmin(String search, Pageable pageable) {
+        Page<Object[]> pageResult;
+
+        if (StringUtils.hasText(search)) {
+            pageResult = tagRepository.findByNameContainingWithSongCount(search, pageable);
+        } else {
+            pageResult = tagRepository.findAllWithSongCount(pageable);
+        }
+
         List<TagAdminViewDto> dtos = pageResult.getContent().stream()
                 .map(result -> new TagAdminViewDto(
                         ((Number) result[0]).longValue(),
