@@ -36,4 +36,5 @@ mvnw.cmd
 uploads
 resources
 .env
+.env.production
 
