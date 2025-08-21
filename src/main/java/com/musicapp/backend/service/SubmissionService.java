@@ -63,7 +63,7 @@ public class SubmissionService {
 
         SongSubmission submission = SongSubmission.builder()
                 .title(request.getTitle())
-                .description(request.getDescription())
+                .description(description)
                 .lyrics(request.getLyrics())
 
                 .filePath(audioFilePath)
