@@ -6,9 +6,7 @@ import lombok.Data;
 
 @Data
 public class CreateCommentRequest {
-
     @NotBlank(message = "Nội dung không được để trống")
-    @Size(max = 500, message = "Bình luận không được vượt quá 300 ký tự.")
+    @Size(max = 500, message = "Bình luận không được vượt quá 500 ký tự.")
     private String content;
-
 }
