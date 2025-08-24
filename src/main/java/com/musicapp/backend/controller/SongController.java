@@ -1,3 +1,5 @@
+// backend/src/main/java/com/musicapp/backend/controller/SongController.java
+
 package com.musicapp.backend.controller;
 
 import com.musicapp.backend.dto.BaseResponse;
@@ -59,21 +61,15 @@ public class SongController {
 
     @GetMapping
     public ResponseEntity<BaseResponse<PagedResponse<SongDto>>> getAllSongs(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "5") int size,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int limit,
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) Long tagId,
             @AuthenticationPrincipal User currentUser) {
 
-        Pageable pageable = PageRequest.of(page, size);
-        Page<SongDto> songs;
+        Pageable pageable = PageRequest.of(page - 1, limit, Sort.by("createdAt").descending());
+        PagedResponse<SongDto> response = songService.getApprovedSongs(search, tagId, pageable, currentUser);
 
-        if (search != null && !search.trim().isEmpty()) {
-            songs = songService.searchSongs(search.trim(), pageable, currentUser);
-        } else {
-            songs = songService.getAllApprovedSongs(pageable, currentUser);
-        }
-
-        PagedResponse<SongDto> response = PagedResponse.of(songs.getContent(), songs);
         return ResponseEntity.ok(BaseResponse.success(response));
     }
 
