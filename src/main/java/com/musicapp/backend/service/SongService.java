@@ -1,3 +1,5 @@
+// backend/src/main/java/com/musicapp/backend/service/SongService.java
+
 package com.musicapp.backend.service;
 
 import com.musicapp.backend.dto.PagedResponse;
@@ -9,10 +11,13 @@ import com.musicapp.backend.exception.ResourceNotFoundException;
 import com.musicapp.backend.exception.UnauthorizedException;
 import com.musicapp.backend.mapper.SongMapper;
 import com.musicapp.backend.repository.*;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -82,9 +87,37 @@ public class SongService {
     }
 
     @Transactional(readOnly = true)
-    public Page<SongDto> getAllApprovedSongs(Pageable pageable, User currentUser) {
-        return songRepository.findByStatusOrderByCreatedAtDesc(Song.SongStatus.APPROVED, pageable)
-                .map(song -> songMapper.toDto(song, currentUser));
+    public PagedResponse<SongDto> getApprovedSongs(String keyword, Long tagId, Pageable pageable, User currentUser) {
+        Specification<Song> spec = (root, query, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            predicates.add(criteriaBuilder.equal(root.get("status"), Song.SongStatus.APPROVED));
+
+            if (StringUtils.hasText(keyword)) {
+                String keywordLower = "%" + keyword.toLowerCase() + "%";
+                Predicate titleLike = criteriaBuilder.like(criteriaBuilder.lower(root.get("title")), keywordLower);
+
+                Join<Song, Singer> singerJoin = root.join("singers");
+                Predicate singerNameLike = criteriaBuilder.like(criteriaBuilder.lower(singerJoin.get("name")), keywordLower);
+
+                predicates.add(criteriaBuilder.or(titleLike, singerNameLike));
+                query.distinct(true);
+            }
+
+            if (tagId != null) {
+                Join<Song, Tag> tagJoin = root.join("tags");
+                predicates.add(criteriaBuilder.equal(tagJoin.get("id"), tagId));
+                query.distinct(true);
+            }
+            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Page<Song> songPage = songRepository.findAll(spec, pageable);
+        List<SongDto> dtoList = songPage.getContent().stream()
+                .map(song -> songMapper.toDto(song, currentUser))
+                .collect(Collectors.toList());
+
+        return PagedResponse.of(dtoList, songPage);
     }
 
     @Transactional
@@ -540,9 +573,11 @@ public class SongService {
             );
         }
 
-        Page<SongDto> dtoPage = songPage.map(song -> songMapper.toDto(song, creator));
+        List<SongDto> dtoList = songPage.getContent().stream()
+                .map(song -> songMapper.toDto(song, creator))
+                .collect(Collectors.toList());
 
-        return PagedResponse.of(dtoPage.getContent(), dtoPage);
+        return PagedResponse.of(dtoList, songPage);
     }
 
     @Transactional(readOnly = true)

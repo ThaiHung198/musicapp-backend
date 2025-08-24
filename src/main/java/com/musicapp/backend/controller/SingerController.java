@@ -40,11 +40,12 @@ public class SingerController {
 
     @GetMapping("/search")
     @PreAuthorize("permitAll()")
-    public ResponseEntity<BaseResponse<Page<SingerDto>>> searchSingers(
+    public ResponseEntity<BaseResponse<PagedResponse<SingerDto>>> searchSingers(
             @RequestParam String keyword,
             @PageableDefault(size = 10) Pageable pageable) {
-        Page<SingerDto> singers = singerService.searchSingers(keyword, pageable);
-        return ResponseEntity.ok(BaseResponse.success(singers));
+        Page<SingerDto> singersPage = singerService.searchSingers(keyword, pageable);
+        PagedResponse<SingerDto> response = PagedResponse.of(singersPage.getContent(), singersPage);
+        return ResponseEntity.ok(BaseResponse.success(response));
     }
 
     @GetMapping("/admin/all")
@@ -78,7 +79,6 @@ public class SingerController {
         List<SingerDto> newSingers = singerService.createMultipleSingersByAdmin(request, avatarFiles, admin);
         return ResponseEntity.ok(BaseResponse.success("Successfully created " + newSingers.size() + " singers.", newSingers));
     }
-    // END-CHANGE
 
     @PutMapping(value = "/admin/{id}", consumes = { MediaType.MULTIPART_FORM_DATA_VALUE })
     @PreAuthorize("hasRole('ADMIN')")

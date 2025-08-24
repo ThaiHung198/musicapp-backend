@@ -1,3 +1,5 @@
+// backend/src/main/java/com/musicapp/backend/config/SecurityConfiguration.java
+
 package com.musicapp.backend.config;
 
 import com.musicapp.backend.security.JwtAuthenticationFilter;
@@ -36,8 +38,7 @@ public class SecurityConfiguration {
                 .cors(withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authorize -> authorize
-
-                        // Các endpoint công khai hoàn toàn, không cần xác thực cho bất kỳ method nào
+                        // Các endpoint công khai hoàn toàn
                         .requestMatchers(
                                 "/uploads/**",
                                 "/api/v1/auth/**",
@@ -47,10 +48,19 @@ public class SecurityConfiguration {
                                 "/api/v1/transactions/vnpay-payment-result"
                         ).permitAll()
 
-                        .requestMatchers(HttpMethod.GET).permitAll()
+                        // Các API GET công khai, ai cũng có thể gọi
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/v1/songs/**",
+                                "/api/v1/playlists/**",
+                                "/api/v1/singers/**",
+                                "/api/v1/chart/**",
+                                "/api/v1/tags/**"
+                        ).permitAll()
 
+                        // Cho phép tất cả các request OPTIONS (quan trọng cho CORS preflight)
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
+                        // Tất cả các request khác phải được xác thực
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

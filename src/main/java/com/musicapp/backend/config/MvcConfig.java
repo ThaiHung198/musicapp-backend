@@ -27,15 +27,14 @@ public class MvcConfig implements WebMvcConfigurer {
                 .addResourceHandler("/uploads/**")
                 .addResourceLocations(s3Url);
     }
-
-    @Override
+    /*@Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
                 .allowedOrigins("*")
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(false);
-    }
+    }*/
 
     @Override
     public void extendMessageConverters(List<HttpMessageConverter<?>> converters) {
