@@ -54,7 +54,8 @@ public class SecurityConfiguration {
                                 "/api/v1/playlists/**",
                                 "/api/v1/singers/**",
                                 "/api/v1/chart/**",
-                                "/api/v1/tags/**"
+                                "/api/v1/tags/**",
+                                "/api/v1/stream/**" // <-- THÊM DÒNG NÀY
                         ).permitAll()
 
                         // Cho phép tất cả các request OPTIONS (quan trọng cho CORS preflight)
