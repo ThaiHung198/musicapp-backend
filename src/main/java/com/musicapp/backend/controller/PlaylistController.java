@@ -1,6 +1,8 @@
 // backend/src/main/java/com/musicapp/backend/controller/PlaylistController.java
+
 package com.musicapp.backend.controller;
 import com.musicapp.backend.dto.BaseResponse;
+import com.musicapp.backend.dto.PagedResponse;
 import com.musicapp.backend.dto.playlist.*;
 import com.musicapp.backend.entity.User;
 import com.musicapp.backend.service.PlaylistService;
@@ -25,12 +27,13 @@ public class PlaylistController {
 
     @GetMapping("/search")
     @PreAuthorize("permitAll()")
-    public ResponseEntity<BaseResponse<Page<PlaylistDto>>> searchPlaylists(
+    public ResponseEntity<BaseResponse<PagedResponse<PlaylistDto>>> searchPlaylists(
             @RequestParam String keyword,
             @PageableDefault(size = 10) Pageable pageable,
             @AuthenticationPrincipal User currentUser) {
-        Page<PlaylistDto> playlists = playlistService.searchPublicPlaylists(keyword, pageable, currentUser);
-        return ResponseEntity.ok(BaseResponse.success(playlists));
+        Page<PlaylistDto> playlistsPage = playlistService.searchPublicPlaylists(keyword, pageable, currentUser);
+        PagedResponse<PlaylistDto> response = PagedResponse.of(playlistsPage.getContent(), playlistsPage);
+        return ResponseEntity.ok(BaseResponse.success(response));
     }
 
     @PostMapping
@@ -52,11 +55,12 @@ public class PlaylistController {
     }
 
     @GetMapping
-    public ResponseEntity<BaseResponse<Page<PlaylistDto>>> getAllPublicPlaylists(
+    public ResponseEntity<BaseResponse<PagedResponse<PlaylistDto>>> getAllPublicPlaylists(
             @PageableDefault(size = 20) Pageable pageable,
             @AuthenticationPrincipal User currentUser) {
         Page<PlaylistDto> playlists = playlistService.getAllPublicPlaylists(pageable, currentUser);
-        return ResponseEntity.ok(BaseResponse.success(playlists));
+        PagedResponse<PlaylistDto> response = PagedResponse.of(playlists.getContent(), playlists);
+        return ResponseEntity.ok(BaseResponse.success(response));
     }
 
     @GetMapping("/{id}")

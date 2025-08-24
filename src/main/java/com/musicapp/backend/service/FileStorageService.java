@@ -1,3 +1,5 @@
+// backend/src/main/java/com/musicapp/backend/service/FileStorageService.java
+
 package com.musicapp.backend.service;
 
 import com.musicapp.backend.exception.BadRequestException;
@@ -6,14 +8,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
+import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.*;
 
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
+import java.io.OutputStream;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -48,11 +49,11 @@ public class FileStorageService {
             PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                     .bucket(bucketName)
                     .key(key)
+                    .contentType(file.getContentType()) // Thêm content type khi upload
                     .build();
 
             s3Client.putObject(putObjectRequest, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
 
-            // THAY ĐỔI QUAN TRỌNG: Trả về đường dẫn tương đối để phục vụ qua backend
             return "/uploads/" + key;
 
         } catch (IOException ex) {
@@ -66,7 +67,6 @@ public class FileStorageService {
         }
 
         try {
-            // Giả sử fileUrl có dạng /uploads/images/songs/filename.jpg
             String key = fileUrl.substring(fileUrl.indexOf("/uploads/") + 9);
 
             DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder()
@@ -77,6 +77,37 @@ public class FileStorageService {
             s3Client.deleteObject(deleteObjectRequest);
         } catch (Exception e) {
             System.err.println("Could not delete file from S3: " + fileUrl + ". Reason: " + e.getMessage());
+        }
+    }
+
+    public GetObjectResponse getS3ObjectAttributes(String key) {
+        HeadObjectRequest headObjectRequest = HeadObjectRequest.builder()
+                .bucket(bucketName)
+                .key(key)
+                .build();
+        HeadObjectResponse headObjectResponse = s3Client.headObject(headObjectRequest);
+
+        return GetObjectResponse.builder()
+                .contentLength(headObjectResponse.contentLength())
+                .contentType(headObjectResponse.contentType())
+                .build();
+    }
+
+    public void getS3ObjectRange(String key, String range, OutputStream outputStream) {
+        GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                .bucket(bucketName)
+                .key(key)
+                .range(range)
+                .build();
+
+        try (ResponseInputStream<GetObjectResponse> s3is = s3Client.getObject(getObjectRequest)) {
+            byte[] buffer = new byte[1024];
+            int bytesRead;
+            while ((bytesRead = s3is.read(buffer)) != -1) {
+                outputStream.write(buffer, 0, bytesRead);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Error streaming S3 object", e);
         }
     }
 }

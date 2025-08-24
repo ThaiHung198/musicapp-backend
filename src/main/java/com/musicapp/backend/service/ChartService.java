@@ -1,3 +1,5 @@
+// backend/src/main/java/com/musicapp/backend/service/ChartService.java
+
 package com.musicapp.backend.service;
 
 import com.musicapp.backend.dto.ChartSongDto;
@@ -12,6 +14,8 @@ import com.musicapp.backend.repository.LikeRepository;
 import com.musicapp.backend.repository.SongRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,15 +45,15 @@ public class ChartService {
     private static final long NEW_SONG_DAYS = 7;
 
     @Transactional(readOnly = true)
-    public List<ChartSongDto> getChart(User currentUser) {
-        List<ChartRanking> rankings = chartRankingRepository.findAllWithSongDetails();
-        return rankings.stream().map(ranking -> {
+    public Page<ChartSongDto> getChart(Pageable pageable, User currentUser) {
+        Page<ChartRanking> rankingsPage = chartRankingRepository.findAllWithSongDetails(pageable);
+        return rankingsPage.map(ranking -> {
             ChartSongDto dto = new ChartSongDto();
             dto.setRank(ranking.getCurrentRank());
             dto.setPreviousRank(ranking.getPreviousRank());
             dto.setSong(songMapper.toDto(ranking.getSong(), currentUser));
             return dto;
-        }).collect(Collectors.toList());
+        });
     }
 
     @Scheduled(cron = "0 0 * * * *") // Chạy mỗi giờ
@@ -76,10 +80,10 @@ public class ChartService {
                 .sorted(Comparator.comparingDouble(ChartRanking::getScore).reversed())
                 .collect(Collectors.toList());
 
-        chartRankingRepository.deleteAllInBatch(); // Xóa bảng xếp hạng cũ hiệu quả hơn
+        chartRankingRepository.deleteAllInBatch();
 
         for (int i = 0; i < newRankings.size(); i++) {
-            if (i >= 100) break; // Chỉ lưu top 100
+            if (i >= 100) break;
             ChartRanking ranking = newRankings.get(i);
             ranking.setCurrentRank(i + 1);
             chartRankingRepository.save(ranking);
